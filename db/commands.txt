@@ -1,0 +1,5 @@
+# Build the Docker image
+docker build -t todo-mariadb .
+
+# Run the container
+docker run -d -p 3306:3306 --name todo-db todo-mariadb
