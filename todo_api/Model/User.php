@@ -1,6 +1,6 @@
 <?php
 
-require_once "./todo_db.inc.php";
+require_once "./Model/todo_db.inc.php";
 
 class User
 {
@@ -24,6 +24,45 @@ class User
         $this->db->myQuery($query, [$id]);
         $data = $this->db->gibZeilen()[0];
         $this->loadFromData($data);
+    }
+
+    // Add this to the User class
+    public static function findByUsername($username) {
+        $db = Todo_DB::gibInstanz();
+        $query = "SELECT * FROM User WHERE Username = ?";
+        $db->myQuery($query, [$username]);
+        $rows = $db->gibZeilen();
+
+        if (count($rows) > 0) {
+            $user = new User();
+            $user->loadFromData($rows[0]);
+            return $user;
+        }
+
+        return null;
+    }
+
+    public static function getAll()
+    {
+        $db = Todo_DB::gibInstanz();
+        $query = "SELECT * FROM User";
+        $db->myQuery($query, []);
+        $rows = $db->gibZeilen();
+
+        // Debug: Inspect $rows
+        //var_dump($rows);
+
+        $users = [];
+        foreach ($rows as $row) {
+            // Debug: Inspect each row
+            //var_dump($row);
+            $user = new User();
+            $user->loadFromData($row);
+            $users[] = $user;
+        }
+        // Debug: Inspect final $users
+        //var_dump($users);
+        return $users;
     }
 
     private function loadFromData($data)
@@ -87,12 +126,13 @@ class User
             $this->save();
         }
     }
-    public function setPasswordHash($passwordHash, $autoSave = true) {
-        $this->passwordHash = $passwordHash;
+    public function setPassword($password, $autoSave = true) {
+        $this->passwordHash = password_hash($password, PASSWORD_DEFAULT);
         if ($autoSave) {
             $this->save();
         }
     }
+
     public function setRole($role, $autoSave = true) {
         if (in_array($role, ['admin', 'user'])) {
             $this->role = $role;

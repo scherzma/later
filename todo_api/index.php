@@ -1,7 +1,9 @@
 <?php
 
+define('APP_ROOT', dirname(__FILE__));
+
 // Debug flag - set to false in production
-$DEBUG = false;
+$DEBUG = true;
 
 // Buffer output when debugging
 if ($DEBUG) {
@@ -15,13 +17,22 @@ function debug($message) {
     }
 }
 
+/**
+ * Handles routing by processing URI parts recursively.
+ *
+ * @param array $uriParts Remaining URI segments to process
+ * @param string $currentDir Current directory in the filesystem
+ * @param array $params Accumulated parameters from dynamic segments
+ * @return bool True if a route is handled, false otherwise
+ */
 function handleRoute($uriParts, $currentDir = __DIR__ . '/controllers/', $params = []) {
     header('Content-Type: application/json');
 
     debug("Handling route with URI parts: " . implode('/', $uriParts));
     debug("Current directory: " . $currentDir);
 
-    if (empty($uriParts[0])) {
+    // If no more URI parts, look for index.php
+    if (empty($uriParts)) {
         $indexFile = $currentDir . 'index.php';
         debug("Checking for index file: " . $indexFile);
         if (file_exists($indexFile)) {
@@ -35,30 +46,39 @@ function handleRoute($uriParts, $currentDir = __DIR__ . '/controllers/', $params
     }
 
     $segment = array_shift($uriParts);
-    $staticPath = $currentDir . $segment;
-    $dynamicPath = $currentDir . '[id]';
+    $staticDir = $currentDir . $segment . '/';
+    $staticFile = $currentDir . $segment . '.php';
 
     debug("Processing segment: " . $segment);
-    debug("Checking static path: " . $staticPath);
-    debug("Checking dynamic path: " . $dynamicPath);
+    debug("Checking static directory: " . $staticDir);
+    debug("Checking static file: " . $staticFile);
 
-    if (is_dir($staticPath)) {
-        debug("Found directory, recursing");
-        return handleRoute($uriParts, $staticPath . '/', $params);
+    // Check for static directory (e.g., /tasks/)
+    if (is_dir($staticDir)) {
+        debug("Found static directory, recursing");
+        return handleRoute($uriParts, $staticDir, $params);
     }
-    elseif (file_exists($staticPath . '.php')) {
-        debug("Found static file: " . $staticPath . '.php');
+    // Check for static file (e.g., /tasks.php)
+    elseif (file_exists($staticFile)) {
+        debug("Found static file: " . $staticFile);
         $_REQUEST['params'] = $params;
-        require_once $staticPath . '.php';
+        require_once $staticFile;
         return true;
     }
-    elseif (file_exists($dynamicPath . '.php')) {
-        debug("Found dynamic route file: " . $dynamicPath . '.php');
-        $params['id'] = $segment;
-        debug("Setting param id = " . $segment);
-        $_REQUEST['params'] = $params;
-        require_once $dynamicPath . '.php';
-        return true;
+    // Check for dynamic directories (e.g., _taskId/)
+    else {
+        $dynamicDirs = glob($currentDir . '_*/', GLOB_ONLYDIR);
+        debug("Checking for dynamic directories: " . implode(', ', $dynamicDirs));
+        foreach ($dynamicDirs as $dynamicDir) {
+            $paramName = substr(basename($dynamicDir), 1); // Remove leading '_'
+            debug("Found dynamic directory for parameter: " . $paramName);
+            $newParams = $params;
+            $newParams[$paramName] = $segment;
+            if (handleRoute($uriParts, $dynamicDir, $newParams)) {
+                return true;
+            }
+        }
+        debug("No matching dynamic directory found");
     }
 
     debug("No matching route found at this level");
@@ -73,7 +93,7 @@ $requestUri = isset($_SERVER['PATH_INFO']) ?
         ''
     );
 
-// Remove 'index.php' if it's in the URI (in case someone accesses it directly)
+// Remove 'index.php' if it's in the URI
 $requestUri = str_replace('index.php', '', $requestUri);
 $uriParts = $requestUri ? explode('/', $requestUri) : [];
 

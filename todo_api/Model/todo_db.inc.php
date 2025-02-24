@@ -1,11 +1,11 @@
 <?php
-require_once "./db_query.inc.php"; // Assumes DB_Query is defined here
+require_once "./Model/db_query.inc.php"; // Assumes DB_Query is defined here
 
 class Todo_DB extends DB_Query {
     private static $db_objekt;
 
     public function __construct() {
-        $this->db_server = "localhost";
+        $this->db_server = "db";
         $this->db_name = "todo_db";
         $this->db_user = "todo_user";
         $this->db_passwort = "todo_pass";

@@ -3,9 +3,9 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile_new
     ports:
-      - "8000:8000"
+      - "80:80"
     volumes:
-      - .:/var/www/todo-api
+      - .:/var/www/html
     container_name: todo-app

@@ -5,11 +5,8 @@ $method = $_SERVER['REQUEST_METHOD'];
 if ($method === 'GET') {
     echo json_encode([
         'status' => 'success',
-        'message' => 'This is the users/something endpoint',
-        'data' => [
-            'resource' => 'something',
-            'description' => 'A specific subsection of users'
-        ]
+        'message' => 'EZ',
+        'data' => [] // Could list users in a real app
     ]);
 } else {
     http_response_code(405);

@@ -1,5 +1,6 @@
 # Build and start the container
 docker-compose up -d
+docker-compose -f docker-compose.php.yml up -d
 
 # Stop the container
 docker-compose down
