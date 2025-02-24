@@ -3,3 +3,4 @@ secrets/
 *.log
 
 script.py
+config.php

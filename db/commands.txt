@@ -1,5 +1,49 @@
 # Build the Docker image
+# This creates an image named 'todo-mariadb' from the Dockerfile in the current directory.
 docker build -t todo-mariadb .
 
-# Run the container
+# Run the container (first time)
+# Starts a new container named 'todo-db' in detached mode (-d), mapping port 3306 on your host to 3306 in the container.
 docker run -d -p 3306:3306 --name todo-db todo-mariadb
+
+# Stop the container
+# Stops the running 'todo-db' container but keeps its data and configuration intact.
+docker stop todo-db
+
+# Start the stopped container
+# Restarts the existing 'todo-db' container without creating a new one, preserving its state.
+docker start todo-db
+
+# Additional Useful Commands:
+
+# Check container status
+# Lists all containers (running or stopped) to confirm 'todo-db' exists and its status.
+docker ps -a
+
+# Restart the container
+# Stops and starts 'todo-db' in one command (useful if it’s already running).
+docker restart todo-db
+
+# Remove the container (if needed)
+# Deletes 'todo-db' completely. Use with caution—data is lost unless persisted with a volume.
+docker rm todo-db
+# Note: You can’t remove a running container; stop it first with 'docker stop todo-db'.
+
+# Run a new container if 'todo-db' was removed
+# If you’ve deleted the container, this creates a new one from the 'todo-mariadb' image.
+docker run -d -p 3306:3306 --name todo-db todo-mariadb
+
+# Access the container’s MariaDB CLI
+# Opens an interactive MySQL shell inside the container to run queries manually.
+docker exec -it todo-db mysql -u todo_user -ptodo_pass
+
+# View container logs
+# Shows logs (e.g., MariaDB startup messages or errors) for troubleshooting.
+docker logs todo-db
+
+# Important Notes:
+# - If you stop and start 'todo-db', its data persists because Docker keeps the container’s filesystem.
+# - If you remove 'todo-db' and run a new one, the database resets to 'init.sql' unless you use a volume:
+#   docker run -d -p 3306:3306 -v todo-data:/var/lib/mysql --name todo-db todo-mariadb
+#   The '-v todo-data:/var/lib/mysql' mounts a named volume to persist data across container restarts/removals.
+# - Port 3306 must be free on your host. If it’s in use, change the host port (e.g., -p 3307:3306).

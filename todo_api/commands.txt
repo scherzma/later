@@ -1,0 +1,11 @@
+# Build and start the container
+docker-compose up -d
+
+# Stop the container
+docker-compose down
+
+# Rebuild if Dockerfile changes
+docker-compose build
+
+# View logs
+docker-compose logs
