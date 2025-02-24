@@ -1,6 +1,6 @@
 <?php
-require_once "./todo_db.inc.php";
-require_once "./User.php";
+require_once "./Model/todo_db.inc.php";
+require_once "./Model/User.php";
 
 class Location {
     private $db;

@@ -1,6 +1,8 @@
 version: '3.8'
 services:
   app:
+    environment:
+      - JWT_SECRET=your-secret-key
     build:
       context: ./todo_api
       dockerfile: Dockerfile

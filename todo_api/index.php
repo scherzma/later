@@ -1,9 +1,25 @@
 <?php
 
+
+// Allow requests from the frontend origin
+header("Access-Control-Allow-Origin: *");
+// Specify allowed HTTP methods
+header("Access-Control-Allow-Methods: POST, GET, OPTIONS, PUT, DELETE");
+// Allow specific headers used in your requests (e.g., for JSON and JWT)
+header("Access-Control-Allow-Headers: Content-Type, Authorization");
+
+// Handle preflight OPTIONS requests
+if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
+    header("HTTP/1.1 200 OK");
+    exit();
+}
+
 define('APP_ROOT', dirname(__FILE__));
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/inc/bootstrap.php';
 
 // Debug flag - set to false in production
-$DEBUG = true;
+$DEBUG = false;
 
 // Buffer output when debugging
 if ($DEBUG) {

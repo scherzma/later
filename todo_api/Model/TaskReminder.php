@@ -1,6 +1,6 @@
 <?php
-require_once "./todo_db.inc.php";
-require_once "./Task.php";
+require_once "./Model/todo_db.inc.php";
+require_once "./Model/Task.php";
 
 class TaskReminder {
     private $db;

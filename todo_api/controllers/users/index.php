@@ -1,7 +1,23 @@
 <?php
+require_once "./inc/auth.php";
 require_once "./Model/User.php";
 header('Content-Type: application/json');
 $method = $_SERVER['REQUEST_METHOD'];
+$userId = requireAuth();
+$user = new User($userId);
+
+if (!$user->getUserId()) {
+    http_response_code(404);
+    echo json_encode(['error' => 'User not found']);
+    exit;
+}
+
+if ($user->getRole() !== 'admin') {
+    http_response_code(403);
+    echo json_encode(['error' => 'Forbidden']);
+    exit;
+}
+
 
 if ($method === 'GET') {
     $users = User::getAll();

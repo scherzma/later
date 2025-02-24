@@ -1,9 +1,9 @@
 <?php
-require_once "./todo_db.inc.php";
-require_once "./User.php";
-require_once "./Location.php";
-require_once "./Tag.php";
-require_once "./TaskReminder.php";
+require_once "./Model/todo_db.inc.php";
+require_once "./Model/User.php";
+require_once "./Model/Location.php";
+require_once "./Model/Tag.php";
+require_once "./Model/TaskReminder.php";
 
 class Task {
     private $db;
@@ -15,8 +15,10 @@ class Task {
     private $location;
     private $userId;
     private $locationId;
+    private $finished;
     private $user = null;
     private $locationObj = null;
+    private $dateFinished;
 
     public function __construct($id = null) {
         $this->db = Todo_DB::gibInstanz();
@@ -28,8 +30,15 @@ class Task {
     public function load($id) {
         $query = "SELECT * FROM Task WHERE TaskID = ?";
         $this->db->myQuery($query, [$id]);
-        $data = $this->db->gibZeilen()[0];
+        $result = $this->db->gibZeilen();
+
+        if (empty($result)) {
+            return false;
+        }
+
+        $data = $result[0];
         $this->loadFromData($data);
+        return true;
     }
 
     private function loadFromData($data) {
@@ -41,16 +50,18 @@ class Task {
         $this->location = $data['Location'];
         $this->userId = $data['UserID'];
         $this->locationId = $data['LocationID'];
+        $this->finished = (bool)$data['Finished'];
+        $this->dateFinished = $data['DateFinished']; // Add this line
     }
 
     public function save() {
         if ($this->taskId === null) {
-            $query = "INSERT INTO Task (Title, Description, EndDate, Priority, Location, UserID, LocationID) VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $this->db->myQuery($query, [$this->title, $this->description, $this->endDate, $this->priority, $this->location, $this->userId, $this->locationId]);
+            $query = "INSERT INTO Task (Title, Description, EndDate, Priority, Location, UserID, LocationID, Finished, DateFinished) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            $this->db->myQuery($query, [$this->title, $this->description, $this->endDate, $this->priority, $this->location, $this->userId, $this->locationId, (int)$this->finished, $this->dateFinished]);
             $this->taskId = $this->db->lastInsertID();
         } else {
-            $query = "UPDATE Task SET Title = ?, Description = ?, EndDate = ?, Priority = ?, Location = ?, UserID = ?, LocationID = ? WHERE TaskID = ?";
-            $this->db->myQuery($query, [$this->title, $this->description, $this->endDate, $this->priority, $this->location, $this->userId, $this->locationId, $this->taskId]);
+            $query = "UPDATE Task SET Title = ?, Description = ?, EndDate = ?, Priority = ?, Location = ?, UserID = ?, LocationID = ?, Finished = ?, DateFinished = ? WHERE TaskID = ?";
+            $this->db->myQuery($query, [$this->title, $this->description, $this->endDate, $this->priority, $this->location, $this->userId, $this->locationId, (int)$this->finished, $this->dateFinished, $this->taskId]);
         }
     }
 
@@ -71,6 +82,7 @@ class Task {
     public function getLocation() { return $this->location; }
     public function getUserId() { return $this->userId; }
     public function getLocationId() { return $this->locationId; }
+    public function getFinished() { return $this->finished; }
     public function getUser() {
         if ($this->user === null && $this->userId !== null) {
             $this->user = new User($this->userId);
@@ -85,17 +97,32 @@ class Task {
     }
 
     public static function getTasksByUserId($userId) {
-        $db = Todo_DB::gibInstanz(); // Get the singleton database connection
+        $db = Todo_DB::gibInstanz();
         $query = "SELECT * FROM Task WHERE UserID = ?";
         $db->myQuery($query, [$userId]);
         $tasksData = $db->gibZeilen();
         $tasks = [];
         foreach ($tasksData as $data) {
-            $task = new Task(); // Create a new Task instance
-            $task->loadFromData($data); // Use existing loadFromData to populate it
+            $task = new Task();
+            $task->loadFromData($data);
             $tasks[] = $task;
         }
         return $tasks;
+    }
+
+    public static function getTaskByUserId($userId, $title) {
+        $db = Todo_DB::gibInstanz();
+        $query = "SELECT * FROM Task WHERE UserID = ? AND Title = ?";
+        $db->myQuery($query, [$userId, $title]);
+        $data = $db->gibZeilen();
+
+        if (empty($data)) {
+            return null;
+        }
+
+        $task = new Task();
+        $task->loadFromData($data[0]);
+        return $task;
     }
 
     // Relationship Methods
@@ -135,8 +162,6 @@ class Task {
         return $reminders;
     }
 
-
-
     // Setters
     public function setTitle($title, $autoSave = true) {
         $this->title = $title;
@@ -162,8 +187,13 @@ class Task {
             if ($autoSave) {
                 $this->save();
             }
+        } elseif ($priority === null) {
+            $this->priority = 'medium';
+            if ($autoSave) {
+                $this->save();
+            }
         } else {
-            throw new InvalidArgumentException("Priority must be 'low', 'medium', or 'high'");
+            throw new InvalidArgumentException("Priority must be 'none'(=medium), 'low', 'medium', or 'high'");
         }
     }
     public function setLocation($location, $autoSave = true) {
@@ -184,5 +214,24 @@ class Task {
             $this->save();
         }
     }
+    public function setFinished($finished, $autoSave = true) {
+        $this->finished = (bool)$finished;
+        if ($autoSave) {
+            $this->save();
+        }
+    }
+
+    public function setDateFinished($dateFinished, $autoSave = true) {
+        $this->dateFinished = $dateFinished;
+        if ($autoSave) {
+            $this->save();
+        }
+    }
+
+    public function getDateFinished() {
+        return $this->dateFinished;
+    }
+
+
 }
 ?>

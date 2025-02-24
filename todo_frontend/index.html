@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-100">
+<!-- Navigation (hidden initially) -->
+<nav id="nav" class="bg-blue-600 text-white p-4 hidden">
+    <ul class="flex space-x-4">
+        <li><a href="#" onclick="showSection('home')" class="hover:underline">Home</a></li>
+        <li><a href="#" onclick="showSection('task-list')" class="hover:underline">Tasks</a></li>
+        <li><a href="#" onclick="showSection('task-create')" class="hover:underline">New Task</a></li>
+        <li><a href="#" onclick="showSection('tags')" class="hover:underline">Tags</a></li>
+        <li><a href="#" onclick="showSection('profile')" class="hover:underline">Profile</a></li>
+        <li><a href="#" onclick="logout()" class="hover:underline">Logout</a></li>
+    </ul>
+</nav>
+
+<!-- Login Section -->
+<section id="login" class="section p-4">
+    <div class="max-w-md mx-auto bg-white shadow-md rounded p-6">
+        <h1 class="text-2xl font-bold mb-4">Login</h1>
+        <form id="login-form">
+            <input type="text" id="login-username" placeholder="Username" required class="w-full p-2 border rounded mb-2">
+            <input type="password" id="login-password" placeholder="Password" required class="w-full p-2 border rounded mb-2">
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded">Login</button>
+        </form>
+        <p class="mt-4 text-center">
+            Don't have an account?
+            <a href="#" onclick="showSection('register')" class="text-blue-500 hover:underline">Register</a>
+        </p>
+    </div>
+</section>
+
+<!-- Register Section -->
+<section id="register" class="section p-4 hidden">
+    <div class="max-w-md mx-auto bg-white shadow-md rounded p-6">
+        <h1 class="text-2xl font-bold mb-4">Register</h1>
+        <form id="register-form">
+            <input type="text" id="register-username" placeholder="Username" required class="w-full p-2 border rounded mb-2">
+            <input type="password" id="register-password" placeholder="Password" required class="w-full p-2 border rounded mb-2">
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded">Register</button>
+        </form>
+        <p class="mt-4 text-center">
+            Already have an account?
+            <a href="#" onclick="showSection('login')" class="text-blue-500 hover:underline">Login</a>
+        </p>
+    </div>
+</section>
+
+<!-- Home Section (Recommended Task) -->
+<section id="home" class="section p-4 hidden">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Recommended Task</h1>
+        <div id="recommended-task" class="bg-white shadow-md rounded p-4">
+            <!-- Task will be rendered here -->
+        </div>
+    </div>
+</section>
+
+<!-- Task List Section -->
+<section id="task-list" class="section p-4 hidden">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Your Tasks</h1>
+        <button onclick="showSection('task-create')" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">Add Task</button>
+        <div id="task-list-container">
+            <!-- Tasks will be rendered here -->
+        </div>
+    </div>
+</section>
+
+<!-- Task Detail Section (includes edit) -->
+<section id="task-detail" class="section p-4 hidden">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Task Details</h1>
+        <div id="task-detail-container">
+            <!-- Task details will be rendered here -->
+        </div>
+        <button onclick="showSection('task-list')" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded">Back to Tasks</button>
+    </div>
+</section>
+
+<!-- Task Create Section -->
+<section id="task-create" class="section p-4 hidden">
+    <div class="max-w-md mx-auto bg-white shadow-md rounded p-6">
+        <h1 class="text-2xl font-bold mb-4">Create New Task</h1>
+        <form id="task-create-form">
+            <input type="text" id="task-create-title" placeholder="Title" required class="w-full p-2 border rounded mb-2">
+            <textarea id="task-create-description" placeholder="Description" class="w-full p-2 border rounded mb-2"></textarea>
+            <input type="datetime-local" id="task-create-endDate" class="w-full p-2 border rounded mb-2">
+            <select id="task-create-priority" class="w-full p-2 border rounded mb-2">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+            </select>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded">Create Task</button>
+        </form>
+        <button onclick="showSection('task-list')" class="mt-4 bg-gray-500 text-white px-4 py-2 rounded">Cancel</button>
+    </div>
+</section>
+
+<!-- Tags Section -->
+<section id="tags" class="section p-4 hidden">
+    <div class="max-w-md mx-auto">
+        <h1 class="text-2xl font-bold mb-4">Manage Tags</h1>
+        <form id="add-tag-form" class="mb-4 bg-white shadow-md rounded p-6">
+            <input type="text" id="tag-name" placeholder="Tag Name" required class="w-full p-2 border rounded mb-2">
+            <select id="tag-priority" class="w-full p-2 border rounded mb-2">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+            </select>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded">Add Tag</button>
+        </form>
+        <div id="tag-list">
+            <!-- Tags will be rendered here -->
+        </div>
+    </div>
+</section>
+
+<!-- Profile Section -->
+<section id="profile" class="section p-4 hidden">
+    <div class="max-w-md mx-auto bg-white shadow-md rounded p-6">
+        <h1 class="text-2xl font-bold mb-4">Profile</h1>
+        <form id="profile-form">
+            <input type="text" id="profile-username" placeholder="Username" required class="w-full p-2 border rounded mb-2">
+            <input type="password" id="profile-password" placeholder="New Password (optional)" class="w-full p-2 border rounded mb-2">
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded">Update Profile</button>
+        </form>
+    </div>
+</section>
+
+<!-- Load JavaScript files in order -->
+<script src="auth.js"></script>
+<script src="utils.js"></script>
+<script src="tasks.js"></script>
+<script src="tags.js"></script>
+<script src="profile.js"></script>
+<script src="home.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

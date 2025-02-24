@@ -1,0 +1,102 @@
+/* animations.css */
+
+/* Scale in center animation for task completion popup */
+@keyframes scale-in-center {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.scale-in-center {
+    animation: scale-in-center 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+}
+
+/* Bounce animation for checkmark */
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-30px);
+    }
+    60% {
+        transform: translateY(-15px);
+    }
+}
+
+.animate-bounce {
+    animation: bounce 1s ease infinite;
+}
+
+/* Checkbox animation */
+@keyframes checkbox-check {
+    0% {
+        width: 0;
+        height: 0;
+        border-color: #fff;
+        transform: translate(0, 0) rotate(45deg);
+    }
+    33% {
+        width: 0.2em;
+        height: 0;
+        transform: translate(0, 0) rotate(45deg);
+    }
+    100% {
+        width: 0.2em;
+        height: 0.5em;
+        border-color: #fff;
+        transform: translate(0, -0.5em) rotate(45deg);
+    }
+}
+
+.checkbox-check {
+    animation: checkbox-check 0.4s ease-in-out forwards;
+    transform-origin: center;
+}
+
+/* Task completed slide animation */
+@keyframes task-complete-slide {
+    0% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    70% {
+        transform: translateY(-10px);
+        opacity: 0.7;
+    }
+    100% {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+}
+
+.task-complete-slide {
+    animation: task-complete-slide 0.5s ease-out forwards;
+}
+
+/* Stars particle animation */
+@keyframes star-particle {
+    0% {
+        transform: scale(0) rotate(0deg);
+        opacity: 0;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        transform: scale(1.5) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.star-particle {
+    position: absolute;
+    background-color: gold;
+    border-radius: 50%;
+    animation: star-particle 1s ease-out forwards;
+}

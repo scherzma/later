@@ -67,11 +67,11 @@ The API is structured around resources (users, tasks, locations, tags, reminders
 - **GET /locations**: Lists accessible locations.
 
 #### **4. Tag Management**
-- **POST /tags**: `{ name, priority }` → Creates a tag (admin only).
+- **POST /tags**: `{ name, priority }` → Creates a tag (for the user).
 - **GET /tags/:id**: Returns tag details.
-- **PUT /tags/:id**: Updates a tag (admin only).
-- **DELETE /tags/:id**: Deletes a tag (admin only).
-- **GET /tags**: Lists all tags.
+- **PUT /tags/:id**: Updates a tag (for the user).
+- **DELETE /tags/:id**: Deletes a tag (for the user).
+- **GET /tags**: Lists all tags (for the user).
 
 #### **5. Task-Tag Associations**
 - **POST /tasks/:taskId/tags**: `{ tagId }` → Assigns a tag to a task.
