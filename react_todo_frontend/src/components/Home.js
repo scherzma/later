@@ -97,13 +97,31 @@ function Home() {
     const handleLater = async () => {
         if (recommendedTask) {
             try {
+                setLoading(true);
+                // Store the current task ID to verify it changes
+                const currentTaskId = recommendedTask.taskId;
+                
                 // Use the postpone endpoint to add the task to the queue
                 await postponeTask(recommendedTask.taskId);
                 toast.info("Task postponed for later.");
-                getRecommendedTask(); // Get the next task
+                
+                // Get the next task (which should be different)
+                await getRecommendedTask();
+                
+                // If we still get the same task back, inform the user
+                if (recommendedTask && recommendedTask.taskId === currentTaskId) {
+                    toast.warning("This is your highest priority task. Try prioritizing other tasks or creating new ones.");
+                }
             } catch (error) {
-                toast.error("Failed to postpone task.");
+                // For 400 errors which indicate the task is already in queue
+                if (error.response?.status === 400) {
+                    toast.warning("This task is already in your queue or cannot be postponed.");
+                } else {
+                    toast.error("Failed to postpone task.");
+                }
                 console.error(error);
+            } finally {
+                setLoading(false);
             }
         }
     };

@@ -82,3 +82,11 @@ CREATE TABLE TaskQueue (
                            FOREIGN KEY (TaskID) REFERENCES Task(TaskID) ON DELETE CASCADE,
                            FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
 );
+
+-- Add a default test user (password: test123)
+INSERT INTO User (Username, PasswordHash) VALUES ('test', '$2y$10$GlA.v9Z1R1xbr0aVYQFAGuHBZd6BIEVFKlxAzxK6QpgXdbQNj8zGe');
+
+-- Add sample tags for the test user
+INSERT INTO Tag (Name, Priority, UserID) VALUES ('Work', 'high', 1);
+INSERT INTO Tag (Name, Priority, UserID) VALUES ('Personal', 'medium', 1);
+INSERT INTO Tag (Name, Priority, UserID) VALUES ('Shopping', 'low', 1);

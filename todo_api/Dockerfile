@@ -12,8 +12,14 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Set working directory
 WORKDIR /var/www/todo-api
 
-COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader
+# Copy only composer files first for better caching
+COPY composer.json ./
+
+# Install Composer dependencies
+RUN composer install --no-scripts --no-dev --optimize-autoloader
+
+# Copy the rest of the application
+COPY . .
 
 # Expose port 8000
 EXPOSE 8000

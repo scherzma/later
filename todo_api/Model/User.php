@@ -210,8 +210,16 @@ class User
         // First, check if there's anything in the queue
         require_once "./Model/TaskQueue.php";
         $nextQueuedTask = TaskQueue::getNextTaskInQueue($this->userId);
-        if ($nextQueuedTask) {
-            return $nextQueuedTask;
+        if ($nextQueuedTask && $nextQueuedTask->getTaskId()) {
+            // Make sure the task exists and is not finished
+            if (!$nextQueuedTask->getFinished()) {
+                return $nextQueuedTask;
+            } else {
+                // If the task in queue is already finished, remove it from queue
+                TaskQueue::removeTaskFromQueue($nextQueuedTask->getTaskId(), $this->userId);
+                // And try to get the next one recursively
+                return $this->getNextRecommendedTask();
+            }
         }
 
         // If queue is empty, find a task based on priority and due date
