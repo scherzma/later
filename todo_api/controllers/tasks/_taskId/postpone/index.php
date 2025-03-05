@@ -51,20 +51,17 @@ if ($method === 'POST') {
         // It will be added back at the end below, so we don't need to exit here
     }
 
-    // Add to queue
+    // Always add to queue regardless of priority
     $queueItem = TaskQueue::addTaskToQueue($taskId, $userId);
 
-    // Reset streak if this was the next recommended task
-    $nextTask = $user->getNextRecommendedTask();
-    if ($nextTask && $nextTask->getTaskId() === $taskId) {
-        $user->updateStreak(true); // Pass true to indicate postponement
-    }
+    // Always reset streak when postponing any task
+    $user->updateStreak(true); // Pass true to indicate postponement
 
-    // Get the next task to recommend - ensure it's not the same one
-    $nextTask = $user->getNextRecommendedTask();
+    // Get the next task to recommend - EXPLICITLY exclude the just-postponed task
+    $nextTask = $user->getNextRecommendedTask($taskId);
     $nextTaskData = null;
     
-    // Make sure we don't recommend the same task that was just postponed
+    // If we have a next task different from the one being postponed, prepare its data
     if ($nextTask && $nextTask->getTaskId() !== $taskId) {
         $nextTaskData = [
             'taskId' => $nextTask->getTaskId(),
@@ -74,27 +71,10 @@ if ($method === 'POST') {
             'endDate' => $nextTask->getEndDate(),
             'location' => $nextTask->getLocation()
         ];
-    } else if ($nextTask && $nextTask->getTaskId() === $taskId) {
-        // If somehow we still got the same task, try to get a different one
-        // by removing it from queue temporarily
-        TaskQueue::removeTaskFromQueue($taskId, $userId);
-        $tempNextTask = $user->getNextRecommendedTask();
-        
-        if ($tempNextTask && $tempNextTask->getTaskId() !== $taskId) {
-            $nextTaskData = [
-                'taskId' => $tempNextTask->getTaskId(),
-                'title' => $tempNextTask->getTitle(),
-                'description' => $tempNextTask->getDescription(),
-                'priority' => $tempNextTask->getPriority(),
-                'endDate' => $tempNextTask->getEndDate(),
-                'location' => $tempNextTask->getLocation()
-            ];
-        }
-        
-        // Add back to queue if we had to remove it
-        if (!TaskQueue::isTaskInQueue($taskId, $userId)) {
-            TaskQueue::addTaskToQueue($taskId, $userId);
-        }
+    } else {
+        // If no other tasks are available, create an empty nextTaskData
+        // to indicate there's no next task for the frontend to display
+        $nextTaskData = null;
     }
 
     echo json_encode([

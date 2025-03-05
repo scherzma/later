@@ -150,7 +150,10 @@ export const completeTask = (taskId) => api.post(`/tasks/${taskId}/complete`);
 
 export const postponeTask = (taskId) => api.post(`/tasks/${taskId}/postpone`);
 
-export const getNextTask = () => api.get('/tasks/next');
+export const getNextTask = (excludeTaskId = null) => {
+    const params = excludeTaskId ? { excludeTaskId } : {};
+    return api.get('/tasks/next', { params });
+};
 
 // Task Queue endpoints
 export const getTaskQueue = () => api.get('/tasks/queue');

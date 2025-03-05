@@ -200,9 +200,10 @@ class User
     /**
      * Get the next recommended task for the user
      *
+     * @param int|null $excludeTaskId Optional task ID to exclude from recommendations
      * @return Task|null A task or null if no tasks available
      */
-    public function getNextRecommendedTask() {
+    public function getNextRecommendedTask($excludeTaskId = null) {
         if ($this->userId === null) {
             return null;
         }
@@ -210,21 +211,37 @@ class User
         // First, check if there's anything in the queue
         require_once "./Model/TaskQueue.php";
         $nextQueuedTask = TaskQueue::getNextTaskInQueue($this->userId);
-        if ($nextQueuedTask && $nextQueuedTask->getTaskId()) {
+        
+        // If there's a task in the queue and it's not the one we want to exclude
+        if ($nextQueuedTask && $nextQueuedTask->getTaskId() && 
+            ($excludeTaskId === null || $nextQueuedTask->getTaskId() != $excludeTaskId)) {
             // Make sure the task exists and is not finished
             if (!$nextQueuedTask->getFinished()) {
                 return $nextQueuedTask;
             } else {
                 // If the task in queue is already finished, remove it from queue
                 TaskQueue::removeTaskFromQueue($nextQueuedTask->getTaskId(), $this->userId);
-                // And try to get the next one recursively
-                return $this->getNextRecommendedTask();
+                // And try to get the next one recursively, still excluding the task
+                return $this->getNextRecommendedTask($excludeTaskId);
+            }
+        }
+        
+        // If we have tasks in the queue but the first one is the excluded task,
+        // let's get all the tasks from the queue and return the second one if available
+        if ($nextQueuedTask && $excludeTaskId && $nextQueuedTask->getTaskId() == $excludeTaskId) {
+            $allQueuedTasks = TaskQueue::getQueuedTasksByUser($this->userId);
+            // If we have at least 2 tasks in queue, return the second one
+            if (count($allQueuedTasks) >= 2) {
+                return $allQueuedTasks[1]; // Index 1 is the second task
             }
         }
 
-        // If queue is empty, find a task based on priority and due date
+        // If queue is empty or only has the excluded task, find a non-queued task based on priority and due date
+        $excludeClause = $excludeTaskId ? " AND TaskID != ? " : "";
+        $params = $excludeTaskId ? [$this->userId, $excludeTaskId] : [$this->userId];
+        
         $query = "SELECT TaskID FROM Task 
-                  WHERE UserID = ? AND Finished = 0 
+                  WHERE UserID = ? AND Finished = 0 " . $excludeClause . "
                   ORDER BY 
                     CASE Priority 
                         WHEN 'high' THEN 1 
@@ -238,11 +255,38 @@ class User
                     EndDate ASC 
                   LIMIT 1";
 
-        $this->db->myQuery($query, [$this->userId]);
+        $this->db->myQuery($query, $params);
         $result = $this->db->gibZeilen();
 
         if (empty($result)) {
-            return null;
+            // If we couldn't find any non-excluded tasks, and we were excluding one,
+            // try again without the exclusion as a fallback (better to show some task than none)
+            if ($excludeTaskId !== null) {
+                // Remove the exclusion clause and try again
+                $query = "SELECT TaskID FROM Task 
+                          WHERE UserID = ? AND Finished = 0
+                          ORDER BY 
+                            CASE Priority 
+                                WHEN 'high' THEN 1 
+                                WHEN 'medium' THEN 2 
+                                WHEN 'low' THEN 3 
+                            END, 
+                            CASE 
+                                WHEN EndDate IS NULL THEN 1
+                                ELSE 0
+                            END, 
+                            EndDate ASC 
+                          LIMIT 1";
+                
+                $this->db->myQuery($query, [$this->userId]);
+                $result = $this->db->gibZeilen();
+                
+                if (empty($result)) {
+                    return null;
+                }
+            } else {
+                return null;
+            }
         }
 
         return new Task($result[0]['TaskID']);
@@ -311,24 +355,43 @@ class User
             return false;
         }
 
+        // Debug output
+        error_log("Updating streak for user {$this->userId}. Current streak: {$this->currentStreak}, Was postponed: " . ($wasPostponed ? 'true' : 'false'));
+
         if ($wasPostponed) {
             // Reset streak if the task was ever postponed
+            error_log("RESETTING STREAK TO ZERO due to postponed task");
             $this->currentStreak = 0;
         } else {
             // Increment streak for a direct completion
+            error_log("INCREMENTING STREAK from {$this->currentStreak} to " . ($this->currentStreak + 1));
             $this->currentStreak++;
         }
 
         // Update best streak if current exceeds it
         if ($this->currentStreak > $this->bestStreak) {
             $this->bestStreak = $this->currentStreak;
+            error_log("New best streak achieved: {$this->bestStreak}");
         }
 
         // No longer need LastCompletedDate for streak logic
         // Optionally remove it or keep it for other purposes
         $this->lastCompletedDate = date('Y-m-d'); // Still useful for tracking last activity
-        $this->save();
-
+        
+        // Always persist the streak changes to the database
+        $query = "UPDATE User SET 
+                  CurrentStreak = ?, 
+                  BestStreak = ?, 
+                  LastCompletedDate = ? 
+                  WHERE UserID = ?";
+        $this->db->myQuery($query, [
+            $this->currentStreak,
+            $this->bestStreak,
+            $this->lastCompletedDate,
+            $this->userId
+        ]);
+        
+        error_log("Final streak value after update: {$this->currentStreak}");
         return true;
     }
 

@@ -49,8 +49,15 @@ if ($method === 'POST') {
     $task->setDateFinished(date('Y-m-d H:i:s'), false);
     $task->save();
 
-    // Check if task was ever postponed
-    $wasPostponed = TaskQueue::isTaskInQueue($taskId, $userId) || TaskQueue::getTaskQueueInfo($taskId, $userId) !== null;
+    // Check if the task has ever been postponed using our tracking methods
+    $inQueue = TaskQueue::isTaskInQueue($taskId, $userId);
+    $hasBeenPostponed = $task->hasBeenPostponed();
+    $wasPostponed = $inQueue || $hasBeenPostponed;
+    
+    // Debug info
+    error_log("Task {$taskId} complete check - In queue: " . ($inQueue ? 'Yes' : 'No') . 
+              ", Has been postponed: " . ($hasBeenPostponed ? 'Yes' : 'No') . 
+              ", Final postponed status: " . ($wasPostponed ? 'Yes' : 'No'));
 
     // Remove from queue if it was there
     TaskQueue::removeTaskFromQueue($taskId, $userId);

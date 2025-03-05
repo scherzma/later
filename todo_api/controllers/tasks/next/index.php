@@ -16,8 +16,11 @@ if (!$user->getUserId()) {
 }
 
 if ($method === 'GET') {
-    // Get the next recommended task
-    $nextTask = $user->getNextRecommendedTask();
+    // Check if we should exclude a specific task from the recommendation
+    $excludeTaskId = isset($_GET['excludeTaskId']) ? $_GET['excludeTaskId'] : null;
+    
+    // Get the next recommended task, excluding the specified task if provided
+    $nextTask = $user->getNextRecommendedTask($excludeTaskId);
 
     if (!$nextTask) {
         echo json_encode([

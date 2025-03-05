@@ -85,7 +85,10 @@ class TaskQueue {
         $db->myQuery($query, [$taskId, $userId]);
         $result = $db->gibZeilen();
 
-        return $result[0]['count'] > 0;
+        $count = (int)$result[0]['count'];
+        error_log("Task {$taskId} for user {$userId} queue check - Count in queue: {$count}");
+        
+        return $count > 0;
     }
 
     /**

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Confetti from 'react-confetti';
 import { useWindowSize } from 'react-use';
 import '../animations.css';
+import { useStreak } from '../context/StreakContext';
 
 const MESSAGES = [
     "Task Completed!",
@@ -33,6 +34,9 @@ const TaskCompletionAnimation = ({ show, onComplete }) => {
     const [encouragingNote, setEncouragingNote] = useState("");
     const [starParticles, setStarParticles] = useState([]);
     const containerRef = useRef(null);
+    
+    // Use streak context hook
+    const { streakInfo } = useStreak();
 
     // Generate random message
     useEffect(() => {
@@ -119,9 +123,11 @@ const TaskCompletionAnimation = ({ show, onComplete }) => {
                         <h2 className="text-3xl font-bold text-gray-800 mb-2">{message}</h2>
                         <p className="text-gray-600 text-xl">{encouragingNote}</p>
 
-                        {/* Streak counter (optional) */}
+                        {/* Streak counter */}
                         <div className="mt-4 bg-blue-50 rounded-lg py-2 px-4 inline-block">
-                            <span className="text-blue-800 font-medium">🔥 Task streak: 1</span>
+                            <span className="text-blue-800 font-medium">
+                                🔥 Task streak: {streakInfo.currentStreak || 0}
+                            </span>
                         </div>
                     </div>
                 </div>

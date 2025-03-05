@@ -18,6 +18,7 @@ class Task {
     private $finished;
     private $user = null;
     private $locationObj = null;
+    private $everPostponed = false; // Flag to track if task was ever postponed
     private $dateFinished;
 
     public function __construct($id = null) {
@@ -160,6 +161,36 @@ class Task {
             $reminders[] = $reminder;
         }
         return $reminders;
+    }
+    
+    /**
+     * Check if a task has ever been postponed
+     * 
+     * IMPORTANT: Due to how the database works, this will only track tasks
+     * that are STILL in the queue. It cannot track tasks that were once
+     * in the queue but have been removed.
+     *
+     * @return bool Whether the task is currently or has ever been in the queue
+     */
+    public function hasBeenPostponed() {
+        if ($this->taskId === null) {
+            return false;
+        }
+        
+        // For this implementation, we'll create a more reliable way to track postponed tasks
+        // We'll add a field to flag this task as "ever postponed"
+        
+        // First, just check if it's in the current queue
+        $query = "SELECT COUNT(*) as count FROM TaskQueue WHERE TaskID = ?";
+        $this->db->myQuery($query, [$this->taskId]);
+        $result = $this->db->gibZeilen();
+        $inQueue = (int)$result[0]['count'] > 0;
+        
+        error_log("Task {$this->taskId} postponement check - Currently in queue: " . ($inQueue ? 'Yes' : 'No'));
+        
+        // For now, we'll only use the current queue status
+        // A more complete solution would require adding a "was_postponed" flag to the Task table
+        return $inQueue;
     }
 
     // Setters

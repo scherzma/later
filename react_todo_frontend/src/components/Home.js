@@ -8,7 +8,7 @@ import TaskCompletionAnimation from "./TaskCompletionAnimation";
 import { useStreak } from "../context/StreakContext";
 
 function Home() {
-    const { streakInfo, updateStreakInfo, fetchStreakData } = useStreak();
+    const { streakInfo, updateStreakInfo, fetchStreakData, refreshStreak } = useStreak();
     const [recommendedTask, setRecommendedTask] = useState(null);
     const [loading, setLoading] = useState(true);
     const [showAnimation, setShowAnimation] = useState(false);
@@ -19,12 +19,12 @@ function Home() {
         overdue: 0
     });
 
-    const getRecommendedTask = async () => {
+    const getRecommendedTask = async (excludeTaskId = null) => {
         try {
             setLoading(true);
 
-            // Get next recommended task from API
-            const response = await getNextTask();
+            // Get next recommended task from API, optionally excluding a specific task
+            const response = await getNextTask(excludeTaskId);
 
             if (response.hasTask) {
                 setRecommendedTask(response.task);
@@ -74,7 +74,19 @@ function Home() {
 
             // If the API returns updated streak info, update the context
             if (result.streakInfo) {
-                updateStreakInfo(result.streakInfo);
+                console.log('Task completion - streak info:', result.streakInfo);
+                
+                // Check if task was postponed previously
+                if (result.streakInfo.wasPostponed) {
+                    console.log('Task was previously postponed, setting streak to 0');
+                    // If task was postponed, force streak to 0
+                    refreshStreak(0);
+                } else {
+                    // Otherwise increment streak
+                    const newStreak = result.streakInfo.currentStreak;
+                    console.log('Task was not postponed, setting streak to', newStreak);
+                    refreshStreak(newStreak);
+                }
             }
 
             // We don't immediately refresh the task here - we'll wait for animation to complete
@@ -90,32 +102,39 @@ function Home() {
         setShowAnimation(false);
         toast.success("Task marked as completed!");
         getRecommendedTask();
-        // Also refresh streak data to ensure it's up-to-date everywhere
-        fetchStreakData();
     };
 
     const handleLater = async () => {
         if (recommendedTask) {
             try {
                 setLoading(true);
-                // Store the current task ID to verify it changes
-                const currentTaskId = recommendedTask.taskId;
+                // Store the current task ID to pass to getRecommendedTask
+                const taskToExclude = recommendedTask.taskId;
+                
+                console.log('Postponing task, resetting streak to 0');
+                // Force streak to 0 immediately - this is crucial for UI consistency
+                refreshStreak(0);
                 
                 // Use the postpone endpoint to add the task to the queue
-                await postponeTask(recommendedTask.taskId);
+                const result = await postponeTask(taskToExclude);
+                console.log('Postpone API response:', result);
                 toast.info("Task postponed for later.");
                 
-                // Get the next task (which should be different)
-                await getRecommendedTask();
+                // Get the next task, EXPLICITLY excluding the one we just postponed
+                await getRecommendedTask(taskToExclude);
                 
-                // If we still get the same task back, inform the user
-                if (recommendedTask && recommendedTask.taskId === currentTaskId) {
-                    toast.warning("This is your highest priority task. Try prioritizing other tasks or creating new ones.");
+                // Additional logic for when there are no more tasks to show
+                if (!recommendedTask) {
+                    toast.info("No more tasks available. You've postponed all your tasks!");
                 }
             } catch (error) {
-                // For 400 errors which indicate the task is already in queue
+                // For 400 errors which indicate the task is already in queue or completed
                 if (error.response?.status === 400) {
-                    toast.warning("This task is already in your queue or cannot be postponed.");
+                    if (error.response?.data?.error?.includes('completed')) {
+                        toast.warning("Cannot postpone completed tasks.");
+                    } else {
+                        toast.warning("This task cannot be postponed.");
+                    }
                 } else {
                     toast.error("Failed to postpone task.");
                 }

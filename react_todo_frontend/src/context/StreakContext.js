@@ -38,6 +38,7 @@ export const StreakProvider = ({ children }) => {
     // Function to update streak data (will be called after task completion)
     const updateStreakInfo = (newStreakInfo) => {
         if (newStreakInfo) {
+            console.log('Updating streak info with:', newStreakInfo);
             setStreakInfo(prev => ({
                 ...prev,
                 ...newStreakInfo
@@ -45,16 +46,34 @@ export const StreakProvider = ({ children }) => {
         }
     };
 
-    // Load streak data on component mount
+    // Load streak data on component mount and when explicitly refreshed
+    // Add a state to track when we need to refresh streak data
+    const [refreshTrigger, setRefreshTrigger] = useState(0);
+    
+    // Function to explicitly request a refresh of streak data
+    const refreshStreak = async (forceValue = null) => {
+        // If we have a force value, immediately update the streak
+        if (forceValue !== null) {
+            setStreakInfo(prev => ({
+                ...prev,
+                currentStreak: forceValue
+            }));
+        }
+        
+        // Then trigger a refresh from the server
+        setRefreshTrigger(prev => prev + 1);
+    };
+    
     useEffect(() => {
         fetchStreakData();
-    }, []);
+    }, [refreshTrigger]);
 
     // The context value that will be provided
     const value = {
         streakInfo,
         updateStreakInfo,
         fetchStreakData,
+        refreshStreak,
         loading
     };
 
