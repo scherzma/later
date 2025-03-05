@@ -25,11 +25,32 @@ export const StreakProvider = ({ children }) => {
         try {
             setLoading(true);
             const response = await fetchUserStreak();
+            
+            // Handle different response formats
             if (response && response.streakInfo) {
                 setStreakInfo(response.streakInfo);
+            } else if (response) {
+                // If the API returns streak info directly without nesting
+                setStreakInfo({
+                    currentStreak: response.currentStreak || 0,
+                    bestStreak: response.bestStreak || 0,
+                    lastCompletedDate: response.lastCompletedDate || null,
+                    needsTaskToday: response.needsTaskToday !== false,
+                    tasksFinishedToday: response.tasksFinishedToday || 0,
+                    pendingTasks: response.pendingTasks || 0
+                });
             }
         } catch (error) {
             console.error('Failed to fetch streak data:', error);
+            // Set default values on error
+            setStreakInfo({
+                currentStreak: 0,
+                bestStreak: 0,
+                lastCompletedDate: null,
+                needsTaskToday: true,
+                tasksFinishedToday: 0,
+                pendingTasks: 0
+            });
         } finally {
             setLoading(false);
         }

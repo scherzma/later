@@ -1,5 +1,5 @@
 import axios from "axios";
-import { getToken, logout } from "../utils/auth";
+import { getToken, getSessionId } from "../utils/auth";
 import { toast } from "react-toastify";
 
 const API_URL = "http://localhost:8000";
@@ -13,24 +13,51 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
     const token = getToken();
+    const sessionId = getSessionId();
+    
+    // Add authorization token if available
     if (token) config.headers.Authorization = `Bearer ${token}`;
+    
+    // Add session ID if available
+    if (sessionId) config.headers["X-Session-ID"] = sessionId;
+    
     return config;
 });
 
 api.interceptors.response.use(
     (response) => response.data,
     (error) => {
+        // Get the current URL path
+        const currentPath = window.location.pathname;
+        
         if (error.response?.status === 401) {
-            logout();
-            window.location.href = "/login";
-            toast.error("Session expired. Please log in again.");
+            // Check if error is due to session expiration
+            const isSessionExpired = error.response?.data?.code === 'SESSION_EXPIRED';
+            
+            // Only handle 401 errors if we're not already on the login page
+            // This prevents infinite redirects
+            if (currentPath !== "/login") {
+                // Import dynamically to avoid circular reference
+                import("../utils/auth").then(({ logout }) => {
+                    logout();
+                    window.location.href = "/login";
+                    
+                    if (isSessionExpired) {
+                        toast.error("Session expired due to inactivity. Please log in again.");
+                    } else {
+                        toast.error("Authentication failed. Please log in again.");
+                    }
+                });
+            }
         }
 
         // Extract error message from response if available
-        const errorMessage = error.response?.data?.message || "An error occurred.";
+        const errorMessage = error.response?.data?.message || error.response?.data?.error || "An error occurred.";
 
         // Don't show toast for errors that will be handled by components
-        if (error.response?.status !== 409 && error.response?.status !== 400) {
+        // Also don't show toast for auth errors on login page to prevent toast spam
+        if (error.response?.status !== 409 && error.response?.status !== 400 && 
+            !(error.response?.status === 401 && currentPath === "/login")) {
             toast.error(errorMessage);
         }
 
@@ -42,13 +69,38 @@ api.interceptors.response.use(
 // Authentication
 export const login = async (username, password) => {
     try {
-        return await api.post("/users/login", { username, password });
+        const response = await api.post("/users/login", { username, password });
+        console.log("Raw API login response:", response);
+        
+        // Ensure the response has the expected structure
+        if (!response.token || !response.user) {
+            console.error("Invalid login response format:", response);
+            throw new Error("Server returned an invalid response");
+        }
+        
+        // Make sure failedAttempts is included even if it's zero
+        if (response.user && response.user.failedAttempts === undefined) {
+            response.user.failedAttempts = 0;
+        }
+        
+        return response;
     } catch (error) {
+        console.error("Login API error:", error);
         if (error.response?.status === 401) {
             throw new Error("Invalid username or password");
         }
         throw error;
     }
+};
+
+// Log out the user - end the session on the server
+export const logout = async (sessionId) => {
+    return await api.post("/users/logout", { sessionId });
+};
+
+// Check if the session is still valid
+export const checkSession = async (sessionId) => {
+    return await api.post("/users/session", { sessionId });
 };
 
 export const register = async (username, password) => {

@@ -41,6 +41,12 @@ abstract class DB_Query
     {
         return $this->db_verbindung->insert_id;
     }
+    
+    // Added rowCount method to match method called in User.php
+    public function rowCount()
+    {
+        return $this->db_verbindung->affected_rows;
+    }
 
     //Lesen der Zeilen aus der Ergebnismenge, die Zeilen werden
     //als Array zurückgegeben

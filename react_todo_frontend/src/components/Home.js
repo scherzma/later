@@ -26,29 +26,57 @@ function Home() {
             // Get next recommended task from API, optionally excluding a specific task
             const response = await getNextTask(excludeTaskId);
 
-            if (response.hasTask) {
+            // Handle different response formats
+            if (response && response.hasTask && response.task) {
                 setRecommendedTask(response.task);
+            } else if (response && response.taskId) {
+                // If API returns task directly instead of nested
+                setRecommendedTask(response);
             } else {
                 setRecommendedTask(null);
             }
 
             // Fetch all tasks to calculate stats
-            const tasks = await fetchTasks();
+            const tasksResponse = await fetchTasks();
+            
+            let tasks = [];
+            // Handle different API response formats 
+            if (Array.isArray(tasksResponse)) {
+                tasks = tasksResponse;
+            } else if (tasksResponse && Array.isArray(tasksResponse.tasks)) {
+                tasks = tasksResponse.tasks;
+            } else if (tasksResponse) {
+                // If it's an object but not an array, try to extract tasks from it
+                tasks = Object.values(tasksResponse).filter(item => 
+                    item && typeof item === 'object' && 'taskId' in item
+                );
+            }
 
-            // Calculate stats
-            const completed = tasks.filter(task => task.finished).length;
-            const pending = tasks.filter(task => !task.finished).length;
-            const overdue = tasks.filter(task => !task.finished && isPastDue(task.endDate)).length;
+            // Calculate stats safely
+            if (Array.isArray(tasks)) {
+                const completed = tasks.filter(task => task.finished).length;
+                const pending = tasks.filter(task => !task.finished).length;
+                const overdue = tasks.filter(task => !task.finished && isPastDue(task.endDate)).length;
 
-            setStats({
-                total: tasks.length,
-                completed,
-                pending,
-                overdue
-            });
+                setStats({
+                    total: tasks.length,
+                    completed,
+                    pending,
+                    overdue
+                });
+            } else {
+                console.error("Failed to process tasks response:", tasksResponse);
+                // Set default stats
+                setStats({
+                    total: 0,
+                    completed: 0,
+                    pending: 0,
+                    overdue: 0
+                });
+            }
 
-            // Extract streak info if available in the user profile (included in the response)
-            if (response.streakInfo) {
+            // Extract streak info if available in the response
+            if (response && response.streakInfo) {
                 updateStreakInfo(response.streakInfo);
             }
         } catch (error) {
@@ -73,7 +101,7 @@ function Home() {
             const result = await completeTask(taskId);
 
             // If the API returns updated streak info, update the context
-            if (result.streakInfo) {
+            if (result && result.streakInfo) {
                 console.log('Task completion - streak info:', result.streakInfo);
                 
                 // Check if task was postponed previously
@@ -281,12 +309,12 @@ function Home() {
                                 </div>
                             )}
 
-                            {recommendedTask.tags && recommendedTask.tags.length > 0 && (
+                            {recommendedTask.tags && Array.isArray(recommendedTask.tags) && recommendedTask.tags.length > 0 && (
                                 <div className="mb-4">
                                     <div className="flex flex-wrap gap-2">
-                                        {recommendedTask.tags.map((tag) => (
+                                        {recommendedTask.tags.map((tag, index) => (
                                             <span
-                                                key={tag.tagId}
+                                                key={tag.tagId || tag.id || index}
                                                 className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
                                             >
                                                 {tag.name}

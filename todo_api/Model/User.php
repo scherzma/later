@@ -15,6 +15,10 @@ class User
     private $bestStreak;
     private $lastCompletedDate;
     private $emailNotifications;
+    private $lastLogin;
+    private $failedAttempts;
+    private $lastFailedLogin;
+    private $lastActivityTime;
 
     public function __construct($id = null)
     {
@@ -98,13 +102,18 @@ class User
         $this->bestStreak = $data['BestStreak'] ?? 0;
         $this->lastCompletedDate = $data['LastCompletedDate'] ?? null;
         $this->emailNotifications = isset($data['EmailNotifications']) ? (bool)$data['EmailNotifications'] : true;
+        $this->lastLogin = $data['LastLogin'] ?? null;
+        $this->failedAttempts = $data['FailedAttempts'] ?? 0;
+        $this->lastFailedLogin = $data['LastFailedLogin'] ?? null;
+        $this->lastActivityTime = $data['LastActivityTime'] ?? null;
     }
 
     public function save()
     {
         if ($this->userId === null) {
-            $query = "INSERT INTO User (Username, PasswordHash, Email, Role, CurrentStreak, BestStreak, LastCompletedDate, EmailNotifications) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+            $query = "INSERT INTO User (Username, PasswordHash, Email, Role, CurrentStreak, BestStreak, LastCompletedDate, EmailNotifications, 
+                      LastLogin, FailedAttempts, LastFailedLogin, LastActivityTime) 
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $this->db->myQuery($query, [
                 $this->username,
                 $this->passwordHash,
@@ -113,7 +122,11 @@ class User
                 $this->currentStreak ?? 0,
                 $this->bestStreak ?? 0,
                 $this->lastCompletedDate,
-                $this->emailNotifications ? 1 : 0
+                $this->emailNotifications ? 1 : 0,
+                $this->lastLogin,
+                $this->failedAttempts ?? 0,
+                $this->lastFailedLogin,
+                $this->lastActivityTime
             ]);
             $this->userId = $this->db->lastInsertID();
         } else {
@@ -125,7 +138,11 @@ class User
                       CurrentStreak = ?, 
                       BestStreak = ?, 
                       LastCompletedDate = ?, 
-                      EmailNotifications = ? 
+                      EmailNotifications = ?,
+                      LastLogin = ?,
+                      FailedAttempts = ?,
+                      LastFailedLogin = ?,
+                      LastActivityTime = ?
                       WHERE UserID = ?";
             $this->db->myQuery($query, [
                 $this->username,
@@ -136,6 +153,10 @@ class User
                 $this->bestStreak,
                 $this->lastCompletedDate,
                 $this->emailNotifications ? 1 : 0,
+                $this->lastLogin,
+                $this->failedAttempts,
+                $this->lastFailedLogin,
+                $this->lastActivityTime,
                 $this->userId
             ]);
         }
@@ -395,6 +416,179 @@ class User
         return true;
     }
 
+    /**
+     * Records a successful login attempt
+     */
+    public function recordSuccessfulLogin() {
+        $this->lastLogin = date('Y-m-d H:i:s');
+        $this->failedAttempts = 0; // Reset failed attempts on successful login
+        $this->lastActivityTime = date('Y-m-d H:i:s');
+        
+        $query = "UPDATE User SET 
+                  LastLogin = ?, 
+                  FailedAttempts = 0,
+                  LastActivityTime = ?
+                  WHERE UserID = ?";
+        $this->db->myQuery($query, [
+            $this->lastLogin,
+            $this->lastActivityTime,
+            $this->userId
+        ]);
+    }
+
+    /**
+     * Records a failed login attempt
+     * 
+     * @param string $username The username of the failed login
+     * @return void
+     */
+    public static function recordFailedLogin($username) {
+        $db = Todo_DB::gibInstanz();
+        $user = self::findByUsername($username);
+        
+        if ($user) {
+            $user->failedAttempts++;
+            $user->lastFailedLogin = date('Y-m-d H:i:s');
+            
+            $query = "UPDATE User SET 
+                      FailedAttempts = ?, 
+                      LastFailedLogin = ? 
+                      WHERE UserID = ?";
+            $db->myQuery($query, [
+                $user->failedAttempts,
+                $user->lastFailedLogin,
+                $user->userId
+            ]);
+        }
+    }
+
+    /**
+     * Updates the user's last activity timestamp
+     */
+    public function updateActivity() {
+        $this->lastActivityTime = date('Y-m-d H:i:s');
+        
+        $query = "UPDATE User SET LastActivityTime = ? WHERE UserID = ?";
+        $this->db->myQuery($query, [
+            $this->lastActivityTime,
+            $this->userId
+        ]);
+    }
+
+    /**
+     * Creates a new session for the user
+     * 
+     * @param int $inactivityTimeout Timeout in seconds
+     * @return string The session ID
+     */
+    public function createSession($inactivityTimeout = 1800) {
+        $sessionId = bin2hex(random_bytes(32));
+        $expiresAt = date('Y-m-d H:i:s', time() + $inactivityTimeout);
+        
+        $query = "INSERT INTO UserSession (SessionID, UserID, ExpiresAt) VALUES (?, ?, ?)";
+        $this->db->myQuery($query, [
+            $sessionId,
+            $this->userId,
+            $expiresAt
+        ]);
+        
+        return $sessionId;
+    }
+
+    /**
+     * Updates a user session's activity timestamp and expiration
+     * 
+     * @param string $sessionId The session ID
+     * @param int $inactivityTimeout Timeout in seconds
+     * @return bool Whether the session was updated
+     */
+    public static function updateSession($sessionId, $inactivityTimeout = 1800) {
+        $db = Todo_DB::gibInstanz();
+        $lastActivity = date('Y-m-d H:i:s');
+        $expiresAt = date('Y-m-d H:i:s', time() + $inactivityTimeout);
+        
+        $query = "UPDATE UserSession SET LastActivity = ?, ExpiresAt = ? WHERE SessionID = ?";
+        $db->myQuery($query, [
+            $lastActivity,
+            $expiresAt,
+            $sessionId
+        ]);
+        
+        return $db->rowCount() > 0;
+    }
+
+    /**
+     * Checks if a session is valid and not expired
+     * 
+     * @param string $sessionId The session ID
+     * @return int|null User ID if session is valid, null otherwise
+     */
+    public static function validateSession($sessionId) {
+        $db = Todo_DB::gibInstanz();
+        
+        $query = "SELECT UserID FROM UserSession 
+                  WHERE SessionID = ? AND ExpiresAt > NOW()";
+        $db->myQuery($query, [$sessionId]);
+        $result = $db->gibZeilen();
+        
+        if (!empty($result)) {
+            return $result[0]['UserID'];
+        }
+        
+        return null;
+    }
+
+    /**
+     * Destroys a user session
+     * 
+     * @param string $sessionId The session ID
+     * @return bool Whether the session was destroyed
+     */
+    public static function destroySession($sessionId) {
+        $db = Todo_DB::gibInstanz();
+        
+        $query = "DELETE FROM UserSession WHERE SessionID = ?";
+        $db->myQuery($query, [$sessionId]);
+        
+        return $db->rowCount() > 0;
+    }
+
+    /**
+     * Benchmark function to determine optimal cost factor for password hashing
+     * 
+     * @param float $maxTime Maximum time in seconds (e.g., 0.35 for 350ms)
+     * @return int The optimal cost factor
+     */
+    public static function findOptimalBcryptCost($maxTime = 0.35) {
+        $cost = 10; // Start with default cost
+        do {
+            $startTime = microtime(true);
+            password_hash('benchmark_test', PASSWORD_BCRYPT, ['cost' => $cost]);
+            $endTime = microtime(true);
+            $time = $endTime - $startTime;
+            
+            if ($time < $maxTime) {
+                $cost++;
+            }
+        } while ($time < $maxTime);
+        
+        return $cost - 1; // Return the last cost that was under the maximum time
+    }
+
+    /**
+     * Updates password hash if needed using the optimal cost factor
+     * 
+     * @param string $password The plain text password
+     * @return bool Whether the password hash was updated
+     */
+    public function updatePasswordHashIfNeeded($password) {
+        if (password_needs_rehash($this->passwordHash, PASSWORD_BCRYPT, ['cost' => self::findOptimalBcryptCost()])) {
+            $this->setPassword($password);
+            return true;
+        }
+        return false;
+    }
+
     // Getters
     public function getUserId() { return $this->userId; }
     public function getUsername() { return $this->username; }
@@ -405,6 +599,10 @@ class User
     public function getBestStreak() { return $this->bestStreak; }
     public function getLastCompletedDate() { return $this->lastCompletedDate; }
     public function getEmailNotifications() { return $this->emailNotifications; }
+    public function getLastLogin() { return $this->lastLogin; }
+    public function getFailedAttempts() { return $this->failedAttempts; }
+    public function getLastFailedLogin() { return $this->lastFailedLogin; }
+    public function getLastActivityTime() { return $this->lastActivityTime; }
 
     // Setters
     public function setUsername($username, $autoSave = true) {
@@ -415,7 +613,9 @@ class User
     }
 
     public function setPassword($password, $autoSave = true) {
-        $this->passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        // Use the optimal cost factor for password hashing
+        $cost = self::findOptimalBcryptCost();
+        $this->passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => $cost]);
         if ($autoSave) {
             $this->save();
         }

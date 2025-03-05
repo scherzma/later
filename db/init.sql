@@ -14,7 +14,11 @@ CREATE TABLE User (
                       CurrentStreak INT DEFAULT 0,
                       BestStreak INT DEFAULT 0,
                       LastCompletedDate DATE,
-                      EmailNotifications BOOLEAN DEFAULT TRUE
+                      EmailNotifications BOOLEAN DEFAULT TRUE,
+                      LastLogin DATETIME,
+                      FailedAttempts INT DEFAULT 0,
+                      LastFailedLogin DATETIME,
+                      LastActivityTime DATETIME
 );
 
 -- Location table
@@ -80,6 +84,16 @@ CREATE TABLE TaskQueue (
                            PostponedDate DATETIME DEFAULT CURRENT_TIMESTAMP,
                            QueuePosition INT NOT NULL,
                            FOREIGN KEY (TaskID) REFERENCES Task(TaskID) ON DELETE CASCADE,
+                           FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
+);
+
+-- User session table to track active sessions
+CREATE TABLE UserSession (
+                           SessionID VARCHAR(64) PRIMARY KEY,
+                           UserID INT NOT NULL,
+                           CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+                           LastActivity DATETIME DEFAULT CURRENT_TIMESTAMP,
+                           ExpiresAt DATETIME,
                            FOREIGN KEY (UserID) REFERENCES User(UserID) ON DELETE CASCADE
 );
 

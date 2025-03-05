@@ -71,7 +71,7 @@ const TaskCompletionAnimation = ({ show, onComplete }) => {
             const timer = setTimeout(() => {
                 setIsActive(false);
                 if (onComplete) onComplete();
-            }, 2800);
+            }, 3500);
 
             return () => clearTimeout(timer);
         }
@@ -86,7 +86,7 @@ const TaskCompletionAnimation = ({ show, onComplete }) => {
                 width={width}
                 height={height}
                 recycle={false}
-                numberOfPieces={300}
+                numberOfPieces={1500}
                 gravity={0.3}
                 colors={['#FFC107', '#4CAF50', '#2196F3', '#E91E63', '#9C27B0']}
             />

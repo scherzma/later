@@ -42,10 +42,45 @@ function Login() {
 
         setLoading(true);
         try {
-            const success = await apiLogin(formData.username, formData.password);
-            if (success) {
+            const result = await apiLogin(formData.username, formData.password);
+            if (result.success) {
+                // First show a success message
                 toast.success("Logged in successfully!");
-                navigate("/");
+                
+                // Show last login time if available
+                if (result.user && result.user.lastLogin) {
+                    const loginDate = new Date(result.user.lastLogin).toLocaleString();
+                    // Use a separate toast for login date with longer duration
+                    toast.info(`Last login: ${loginDate}`, {
+                        autoClose: 5000, // 5 seconds
+                    });
+                }
+                
+                // Show warning if there were failed attempts - with higher priority and longer duration
+                if (result.user && result.user.failedAttempts > 0) {
+                    // Use a more persistent toast with longer duration and higher priority
+                    toast.error(`SECURITY ALERT: There have been ${result.user.failedAttempts} failed login attempt(s) since your last login.`, {
+                        autoClose: 10000, // 10 seconds
+                        position: "top-center",
+                        hideProgressBar: false,
+                        closeOnClick: false,
+                        pauseOnHover: true,
+                        draggable: true,
+                    });
+                    
+                    // Also set it as an error in the form for visibility
+                    setErrors({ 
+                        securityAlert: `SECURITY ALERT: ${result.user.failedAttempts} failed login attempt(s) detected since your last login. If this was not you, please change your password immediately.` 
+                    });
+                    
+                    // Small delay to ensure the error message is visible before navigating
+                    setTimeout(() => {
+                        navigate("/");
+                    }, 2000);
+                } else {
+                    // Navigate immediately if no failed attempts
+                    navigate("/");
+                }
             } else {
                 setErrors({ general: "Login failed. Check your credentials." });
             }
@@ -80,6 +115,21 @@ function Login() {
                     {errors.general && (
                         <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-4 text-red-700">
                             <p>{errors.general}</p>
+                        </div>
+                    )}
+                    
+                    {errors.securityAlert && (
+                        <div className="mb-4 bg-red-100 border-l-4 border-red-700 p-4 text-red-900 animate-pulse">
+                            <div className="flex">
+                                <div className="flex-shrink-0">
+                                    <svg className="h-5 w-5 text-red-700" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div className="ml-3">
+                                    <p className="text-sm font-medium">{errors.securityAlert}</p>
+                                </div>
+                            </div>
                         </div>
                     )}
 
