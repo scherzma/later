@@ -13,9 +13,8 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 WORKDIR /var/www/todo-api
 
 # Copy only composer files first for better caching
-COPY composer.json ./
-
-# Install Composer dependencies
+# After copying composer.json (and composer.lock if you have one)
+COPY composer.json composer.lock* ./
 RUN composer install --no-scripts --no-dev --optimize-autoloader
 
 # Copy the rest of the application
