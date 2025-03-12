@@ -29,6 +29,7 @@ class Task {
     }
 
     public function load($id) {
+        // Lazy loading: Only fetch this specific task when needed
         $query = "SELECT * FROM Task WHERE TaskID = ?";
         $this->db->myQuery($query, [$id]);
         $result = $this->db->gibZeilen();
@@ -84,12 +85,22 @@ class Task {
     public function getUserId() { return $this->userId; }
     public function getLocationId() { return $this->locationId; }
     public function getFinished() { return $this->finished; }
+    
+    /**
+     * Lazy Loading: User object is only loaded when explicitly requested
+     * This prevents unnecessary database queries if the user data isn't needed
+     */
     public function getUser() {
         if ($this->user === null && $this->userId !== null) {
             $this->user = new User($this->userId);
         }
         return $this->user;
     }
+    
+    /**
+     * Lazy Loading: Location object is only loaded when explicitly requested
+     * This prevents unnecessary database queries if the location data isn't needed
+     */
     public function getLocationObj() {
         if ($this->locationObj === null && $this->locationId !== null) {
             $this->locationObj = new Location($this->locationId);
@@ -98,6 +109,7 @@ class Task {
     }
 
     public static function getTasksByUserId($userId) {
+        // Lazy loading: Only basic task data is loaded, related objects are not loaded
         $db = Todo_DB::gibInstanz();
         $query = "SELECT * FROM Task WHERE UserID = ?";
         $db->myQuery($query, [$userId]);
@@ -112,6 +124,7 @@ class Task {
     }
 
     public static function getTaskByUserId($userId, $title) {
+        // Lazy loading: Only basic task data is loaded, related objects are not loaded
         $db = Todo_DB::gibInstanz();
         $query = "SELECT * FROM Task WHERE UserID = ? AND Title = ?";
         $db->myQuery($query, [$userId, $title]);
@@ -127,6 +140,10 @@ class Task {
     }
 
     // Relationship Methods
+    /**
+     * Eager Loading: This fetches all tags for a task in a single query
+     * Uses JOIN to retrieve all related tags at once
+     */
     public function getTags() {
         $query = "SELECT t.* FROM Tag t JOIN TaskTag tt ON t.TagID = tt.TagID WHERE tt.TaskID = ?";
         $this->db->myQuery($query, [$this->taskId]);
@@ -150,6 +167,9 @@ class Task {
         $this->db->myQuery($query, [$this->taskId, $tagId]);
     }
 
+    /**
+     * Eager Loading: This fetches all reminders for a task in a single query
+     */
     public function getReminders() {
         $query = "SELECT * FROM TaskReminder WHERE TaskID = ?";
         $this->db->myQuery($query, [$this->taskId]);

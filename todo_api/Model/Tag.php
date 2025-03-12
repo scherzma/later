@@ -16,6 +16,7 @@ class Tag {
     }
 
     public function load($id) {
+        // Lazy loading: Only fetch this specific tag when needed
         $query = "SELECT * FROM Tag WHERE TagID = ?";
         $this->db->myQuery($query, [$id]);
         $data = $this->db->gibZeilen();
@@ -52,7 +53,10 @@ class Tag {
         }
     }
 
-    // New method to get tasks associated with this tag
+    /**
+     * Eager Loading: This fetches all tasks for a tag in a single query
+     * Uses JOIN to retrieve all related tasks at once
+     */
     public function getTasks() {
         $query = "SELECT t.* FROM Task t JOIN TaskTag tt ON t.TaskID = tt.TaskID WHERE tt.TagID = ? AND t.UserID = ?";
         $this->db->myQuery($query, [$this->tagId, $this->userId]);
@@ -65,6 +69,10 @@ class Tag {
         return $tasks;
     }
 
+    /**
+     * Lazy loading: Load only basic tag information for a user
+     * Related tasks are not loaded until explicitly requested via getTasks()
+     */
     public static function getTagsByUserId($userId) {
         $db = Todo_DB::gibInstanz();
         $query = "SELECT * FROM Tag WHERE UserID = ?";
@@ -109,4 +117,3 @@ class Tag {
         }
     }
 }
-?>

@@ -21,6 +21,7 @@ class TaskQueue {
     }
 
     public function load($id) {
+        // Lazy loading: Only fetch this specific queue item when needed
         $query = "SELECT * FROM TaskQueue WHERE QueueID = ?";
         $this->db->myQuery($query, [$id]);
         $result = $this->db->gibZeilen();
@@ -74,6 +75,7 @@ class TaskQueue {
 
     /**
      * Check if a task is in the queue for a specific user
+     * Lazy loading approach: Only checks for existence without loading complete objects
      *
      * @param int $taskId Task ID
      * @param int $userId User ID
@@ -93,6 +95,7 @@ class TaskQueue {
 
     /**
      * Get task position in queue
+     * Lazy loading approach: Only fetches queue data without loading related objects
      *
      * @param int $taskId Task ID
      * @param int $userId User ID
@@ -165,6 +168,9 @@ class TaskQueue {
 
     /**
      * Get the next task in the queue for a user
+     * 
+     * Eager Loading: This joins the Task and TaskQueue tables to get the next task
+     * in a single query rather than first getting the queue item and then loading the task
      *
      * @param int $userId The user ID
      * @return Task|null The next task or null if queue is empty
@@ -219,6 +225,9 @@ class TaskQueue {
 
     /**
      * Get all queued tasks for a user
+     * 
+     * Eager Loading: This joins the Task and TaskQueue tables to get all tasks
+     * in a single query rather than first getting queue items and then loading tasks
      *
      * @param int $userId The user ID
      * @return array Array of Task objects
@@ -298,6 +307,10 @@ class TaskQueue {
     public function getPostponedDate() { return $this->postponedDate; }
     public function getQueuePosition() { return $this->queuePosition; }
 
+    /**
+     * Lazy Loading: Task object is only loaded when explicitly requested
+     * This prevents unnecessary database queries if the task data isn't needed
+     */
     public function getTask() {
         if ($this->task === null && $this->taskId !== null) {
             $this->task = new Task($this->taskId);
@@ -305,6 +318,10 @@ class TaskQueue {
         return $this->task;
     }
 
+    /**
+     * Lazy Loading: User object is only loaded when explicitly requested
+     * This prevents unnecessary database queries if the user data isn't needed
+     */
     public function getUser() {
         if ($this->user === null && $this->userId !== null) {
             $this->user = new User($this->userId);
@@ -341,4 +358,3 @@ class TaskQueue {
         }
     }
 }
-?>
