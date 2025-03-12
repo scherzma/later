@@ -9,7 +9,7 @@ require_once "./Model/User.php";
  * @param int $timeout Inactivity timeout in seconds (default 1800 = 30 minutes)
  * @return bool Whether the session is valid
  */
-function checkSession($sessionId, $timeout = 1800) {
+function checkSession($sessionId, $timeout = 1200) {
     if (empty($sessionId)) {
         return false;
     }

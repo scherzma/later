@@ -101,7 +101,7 @@ function LoginHistory() {
                         <div>
                             <div className="font-medium text-gray-800">Current Session</div>
                             <div className="text-gray-600 text-sm">
-                                Active - Session will expire after 30 minutes of inactivity
+                                Active - Session will expire after 20 minutes of inactivity
                             </div>
                         </div>
                     </div>

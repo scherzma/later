@@ -31,6 +31,9 @@ if ($method === 'POST') {
             // Check if password needs rehashing (using optimal cost factor)
             $user->updatePasswordHashIfNeeded($password);
             
+            // Store the current failed attempts before resetting
+            $failedAttempts = $user->getFailedAttempts();
+            
             // Record successful login and update activity
             $user->recordSuccessfulLogin();
             
@@ -48,7 +51,7 @@ if ($method === 'POST') {
                     'id' => $user->getUserId(),
                     'username' => $user->getUsername(),
                     'lastLogin' => $user->getLastLogin(),
-                    'failedAttempts' => $user->getFailedAttempts()
+                    'failedAttempts' => $failedAttempts  // Use the stored value instead of getting it after reset
                 ]
             ];
             $statusCode = 200;
