@@ -62,4 +62,42 @@ class JwtTest extends TestCase
         // The expiration should be in the future
         $this->assertGreaterThan(time(), $payload['exp']);
     }
+
+
+    public function testJwtGenerationAndValidation()
+    {
+        // 1. Setup - Import der JWT-Funktionen
+        require_once dirname(dirname(__DIR__)) . '/inc/jwt.php';
+
+        // 2. Testdaten
+        $testUserId = 42;
+
+        // 3. Testausführung - Token generieren
+        $token = generateJWT($testUserId);
+
+        // 4. Überprüfung - Token-Format
+        $this->assertIsString($token);
+        $this->assertNotEmpty($token);
+
+        // Token besteht aus 3 durch Punkte getrennten Teilen (Header, Payload, Signature)
+        $parts = explode('.', $token);
+        $this->assertCount(3, $parts);
+
+        // 5. Testausführung - Token validieren
+        $decoded = verifyJWT($token);
+
+        // 6. Überprüfung der Validierung
+        $this->assertIsObject($decoded);
+        $this->assertEquals($testUserId, $decoded->sub); // 'sub' enthält die User ID
+
+        // 7. Überprüfen des Ablaufdatums
+        $this->assertObjectHasAttribute('exp', $decoded);
+        $this->assertGreaterThan(time(), $decoded->exp);
+
+        // 8. Überprüfen eines ungültigen Tokens
+        $invalidToken = $token . 'tampered';
+        $invalidDecoded = verifyJWT($invalidToken);
+        $this->assertNull($invalidDecoded);
+    }
+
 }
