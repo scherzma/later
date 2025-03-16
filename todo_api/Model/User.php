@@ -91,6 +91,44 @@ class User
         return $users;
     }
 
+    /**
+     * List of allowed fields when creating a new user from client input
+     * This protects against mass assignment vulnerabilities
+     */
+    private static $allowedFields = [
+        'username' => true,
+        'email' => true,
+        'emailNotifications' => true
+    ];
+    
+    /**
+     * Creates a new user object from client input with only allowed fields
+     * 
+     * @param array $data Data from client
+     * @return User The created user object with only allowed fields set
+     */
+    public static function fromClientInput($data) {
+        $user = new User();
+        
+        // Only set fields that are explicitly allowed
+        foreach (self::$allowedFields as $field => $allowed) {
+            if (isset($data[$field])) {
+                // Use proper setter methods
+                $method = 'set' . ucfirst($field);
+                if (method_exists($user, $method)) {
+                    $user->$method($data[$field], false);
+                }
+            }
+        }
+        
+        // Password is handled separately for security
+        if (isset($data['password'])) {
+            $user->setPassword($data['password'], false);
+        }
+        
+        return $user;
+    }
+
     private function loadFromData($data)
     {
         $this->userId = $data['UserID'];

@@ -31,9 +31,12 @@ if ($method === 'GET') {
             exit;
         }
 
-        $user = new User();
-        $user->setUsername($username, false);
-        $user->setPassword($password, false);
+        // Use the new fromClientInput method to safely create user
+        // This prevents mass assignment vulnerabilities
+        $user = User::fromClientInput([
+            'username' => $username,
+            'password' => $password
+        ]);
         $user->save();
 
 

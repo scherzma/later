@@ -45,6 +45,44 @@ class Task {
         return true;
     }
 
+    /**
+     * List of allowed fields when creating a new task from client input
+     * This protects against mass assignment vulnerabilities
+     */
+    private static $allowedFields = [
+        'title' => true,
+        'description' => true,
+        'endDate' => true,
+        'priority' => true,
+        'location' => true,
+        'locationId' => true
+    ];
+    
+    /**
+     * Creates a new task object from client input with only allowed fields
+     * 
+     * @param array $data Data from client
+     * @param int $userId User ID to associate with the task
+     * @return Task The created task object with only allowed fields set
+     */
+    public static function fromClientInput($data, $userId) {
+        $task = new Task();
+        $task->setUserId($userId, false);
+        
+        // Only set fields that are explicitly allowed
+        foreach (self::$allowedFields as $field => $allowed) {
+            if (isset($data[$field])) {
+                // Use proper setter methods
+                $method = 'set' . ucfirst($field);
+                if (method_exists($task, $method)) {
+                    $task->$method($data[$field], false);
+                }
+            }
+        }
+        
+        return $task;
+    }
+
     public function loadFromData($data) {
         $this->taskId = $data['TaskID'];
         $this->title = $data['Title'];

@@ -27,6 +27,40 @@ class Tag {
         return false;
     }
 
+    /**
+     * List of allowed fields when creating a new tag from client input
+     * This protects against mass assignment vulnerabilities
+     */
+    private static $allowedFields = [
+        'name' => true,
+        'priority' => true
+    ];
+    
+    /**
+     * Creates a new tag object from client input with only allowed fields
+     * 
+     * @param array $data Data from client
+     * @param int $userId User ID to associate with the tag
+     * @return Tag The created tag object with only allowed fields set
+     */
+    public static function fromClientInput($data, $userId) {
+        $tag = new Tag();
+        $tag->setUserId($userId, false);
+        
+        // Only set fields that are explicitly allowed
+        foreach (self::$allowedFields as $field => $allowed) {
+            if (isset($data[$field])) {
+                // Use proper setter methods
+                $method = 'set' . ucfirst($field);
+                if (method_exists($tag, $method)) {
+                    $tag->$method($data[$field], false);
+                }
+            }
+        }
+        
+        return $tag;
+    }
+
     public function loadFromData($data) {
         $this->tagId = $data['TagID'];
         $this->name = $data['Name'];

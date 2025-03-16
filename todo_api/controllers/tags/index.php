@@ -47,17 +47,15 @@ switch ($method) {
             exit;
         }
 
-        // Check if tag name already exists for this user (handled by unique constraint in DB)
-        $tag = new Tag();
-        $tag->setName($name, false);
+        // Use the fromClientInput method to safely create tag from user input
+        // This prevents mass assignment vulnerabilities by only allowing whitelisted fields
         try {
-            $tag->setPriority($priority, false);
+            $tag = Tag::fromClientInput($input, $userId);
         } catch (InvalidArgumentException $e) {
             http_response_code(400);
             echo json_encode(['error' => $e->getMessage()]);
             exit;
         }
-        $tag->setUserId($userId, false);
 
         try {
             $tag->save();

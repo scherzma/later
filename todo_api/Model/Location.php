@@ -25,6 +25,41 @@ class Location {
         $this->loadFromData($data);
     }
 
+    /**
+     * List of allowed fields when creating a new location from client input
+     * This protects against mass assignment vulnerabilities
+     */
+    private static $allowedFields = [
+        'name' => true,
+        'latitude' => true,
+        'longitude' => true
+    ];
+    
+    /**
+     * Creates a new location object from client input with only allowed fields
+     * 
+     * @param array $data Data from client
+     * @param int $userId User ID to associate as creator
+     * @return Location The created location object with only allowed fields set
+     */
+    public static function fromClientInput($data, $userId) {
+        $location = new Location();
+        $location->setCreatedBy($userId, false);
+        
+        // Only set fields that are explicitly allowed
+        foreach (self::$allowedFields as $field => $allowed) {
+            if (isset($data[$field])) {
+                // Use proper setter methods
+                $method = 'set' . ucfirst($field);
+                if (method_exists($location, $method)) {
+                    $location->$method($data[$field], false);
+                }
+            }
+        }
+        
+        return $location;
+    }
+
     public function loadFromData($data) {
         $this->locationId = $data['LocationID'];
         $this->name = $data['Name'];

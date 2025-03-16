@@ -56,13 +56,9 @@ if ($method === 'GET') {
         exit;
     }
 
-    $task = new Task();
-    $task->setTitle($title, false);
-    $task->setDescription($description, false);
-    $task->setEndDate($endDate, false);
-    $task->setPriority($priority, false);
-    $task->setLocation($location, false);
-    $task->setUserId($userId, false);
+    // Use the new fromClientInput method to safely create task
+    // This prevents mass assignment vulnerabilities by only allowing whitelisted fields
+    $task = Task::fromClientInput($input, $userId);
     $task->setFinished(false, false);
     $task->save();
 
