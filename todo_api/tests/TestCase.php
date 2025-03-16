@@ -3,67 +3,125 @@
 namespace Tests;
 
 use PHPUnit\Framework\TestCase as BaseTestCase;
+use Tests\PhpStreamMock;
+use Tests\HttpMock;
+use Tests\ApiExecutor;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected $dbBackup = null;
-
+    /**
+     * API executor instance
+     */
+    protected $apiExecutor;
+    
+    /**
+     * Set up the test environment
+     */
     protected function setUp(): void
     {
         parent::setUp();
         
-        // Set up environment variables
+        // Set up environment variables for testing
         $_ENV['JWT_SECRET'] = 'test-secret-key';
         
-        // Include necessary files for testing
-        if (!class_exists('Todo_DB')) {
-            require_once __DIR__ . '/../Model/todo_db.inc.php';
-        }
+        // Override PHP's http_response_code and header functions with our mocks
+        $this->mockHttpFunctions();
+        
+        // Initialize the API executor
+        $this->apiExecutor = new ApiExecutor();
+        
+        // Include necessary bootstrap files
+        $this->includeBootstrap();
     }
     
+    /**
+     * Clean up after each test
+     */
     protected function tearDown(): void
     {
-        // Clean up after each test
         parent::tearDown();
+        
+        // Clean up global state
+        $_GET = [];
+        $_POST = [];
+        $_REQUEST = [];
+        $_SERVER = [];
+        
+        // Reset the HTTP mock
+        HttpMock::reset();
     }
     
     /**
      * Get a test database connection
-     * This uses a separate configuration for testing to avoid affecting the production database
      */
     protected function getTestDb()
     {
-        // This could be a memory SQLite DB or a test MySQL DB
-        // For now, we'll just return the regular DB instance but in a real test
-        // environment, you'd use a separate test database
         return \Todo_DB::gibInstanz();
     }
     
     /**
-     * Create a HTTP request with given parameters
+     * Call the API
+     * 
+     * @param string $method HTTP method (GET, POST, PUT, DELETE)
+     * @param string $endpoint API endpoint (e.g., /users/login)
+     * @param array $data Request data
+     * @param array $headers Request headers
+     * @return array Response data
      */
-    protected function createRequest(string $method, string $uri, array $data = [], array $headers = [])
+    protected function callApi(string $method, string $endpoint, array $data = [], array $headers = [])
     {
-        $_SERVER['REQUEST_METHOD'] = $method;
-        $_SERVER['REQUEST_URI'] = $uri;
-        
-        // Set headers
-        foreach ($headers as $key => $value) {
-            $_SERVER['HTTP_' . strtoupper(str_replace('-', '_', $key))] = $value;
+        return $this->apiExecutor->executeRequest($method, $endpoint, $data, $headers);
+    }
+    
+    /**
+     * Mock PHP's HTTP functions
+     */
+    private function mockHttpFunctions()
+    {
+        // Define function overrides in the global namespace
+        if (!function_exists('http_response_code')) {
+            function http_response_code($code = null) {
+                return \Tests\HttpMock::responseCode($code);
+            }
         }
         
-        // Set request body for POST/PUT requests
-        if ($method === 'POST' || $method === 'PUT') {
-            $_POST = $data;
-            $_REQUEST = $data;
+        if (!function_exists('header')) {
+            function header($header, $replace = true, $http_response_code = null) {
+                return \Tests\HttpMock::header($header, $replace, $http_response_code);
+            }
         }
+    }
+    
+    /**
+     * Include bootstrap functionality
+     */
+    private function includeBootstrap()
+    {
+        static $bootstrapIncluded = false;
         
-        // Set query parameters for GET requests
-        if ($method === 'GET') {
-            $_GET = $data;
-            $_REQUEST = $data;
+        if (!$bootstrapIncluded) {
+            // Define database configuration
+            if (!defined('DB_HOST')) define('DB_HOST', 'db');
+            if (!defined('DB_NAME')) define('DB_NAME', 'todo_db');
+            if (!defined('DB_USER')) define('DB_USER', 'todo_user');
+            if (!defined('DB_PASS')) define('DB_PASS', 'todo_password');
+            
+            // Define security settings
+            if (!defined('JWT_SECRET')) define('JWT_SECRET', 'test_secret_key_for_jwt_tokens');
+            if (!defined('BCRYPT_COST')) define('BCRYPT_COST', 4); // Lower cost for faster tests
+            
+            // Define application root
+            if (!defined('APP_ROOT')) {
+                define('APP_ROOT', dirname(__DIR__));
+            }
+            
+            // Load autoloader
+            require_once dirname(__DIR__) . '/vendor/autoload.php';
+            
+            // Load database class
+            require_once dirname(__DIR__) . '/Model/todo_db.inc.php';
+            
+            $bootstrapIncluded = true;
         }
-        
-        return true;
     }
 }
