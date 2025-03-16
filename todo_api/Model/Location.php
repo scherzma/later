@@ -25,7 +25,7 @@ class Location {
         $this->loadFromData($data);
     }
 
-    private function loadFromData($data) {
+    public function loadFromData($data) {
         $this->locationId = $data['LocationID'];
         $this->name = $data['Name'];
         $this->createdBy = $data['CreatedBy'];
@@ -58,11 +58,22 @@ class Location {
     public function getCreatedBy() { return $this->createdBy; }
     public function getLatitude() { return $this->latitude; }
     public function getLongitude() { return $this->longitude; }
+    /**
+     * Lazy loading: User object is only loaded when explicitly requested
+     * This prevents unnecessary database queries if the user data isn't needed
+     */
     public function getCreatedByUser() {
         if ($this->createdByUser === null && $this->createdBy !== null) {
             $this->createdByUser = new User($this->createdBy);
         }
         return $this->createdByUser;
+    }
+    
+    /**
+     * Direct setter for eager loading implementation
+     */
+    public function setCreatedByUserDirect($user) {
+        $this->createdByUser = $user;
     }
 
     // Setters

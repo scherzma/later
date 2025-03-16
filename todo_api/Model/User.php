@@ -173,25 +173,169 @@ class User
 
     /**
      * Get tasks by user ID
-     *
+     * 
+     * @param bool $eagerLoad Whether to eager load related objects (Location, User, Tags)
      * @return array Array of Task objects
      */
-    public function getTasks() {
-        return Task::getTasksByUserId($this->userId);
+    public function getTasks($eagerLoad = false) {
+        if (!$eagerLoad) {
+            // Original lazy loading implementation
+            return Task::getTasksByUserId($this->userId);
+        }
+        
+        // Eager loading implementation - fetch tasks with all related data in minimal queries
+        $db = Todo_DB::gibInstanz();
+        
+        // 1. Fetch all tasks with their basic data in one query
+        $query = "SELECT * FROM Task WHERE UserID = ?";
+        $db->myQuery($query, [$this->userId]);
+        $tasksData = $db->gibZeilen();
+        
+        if (empty($tasksData)) {
+            return [];
+        }
+        
+        // Create Task objects and collect task IDs
+        $tasks = [];
+        $taskIds = [];
+        foreach ($tasksData as $data) {
+            $task = new Task();
+            $task->loadFromData($data);
+            $tasks[$data['TaskID']] = $task;
+            $taskIds[] = $data['TaskID'];
+        }
+        
+        // Nothing to eager load if no tasks found
+        if (empty($taskIds)) {
+            return [];
+        }
+        
+        // 2. Eager load location data for all tasks in one query
+        $locationIds = array_filter(array_column($tasksData, 'LocationID'));
+        if (!empty($locationIds)) {
+            $placeholders = str_repeat('?,', count($locationIds) - 1) . '?';
+            $query = "SELECT * FROM Location WHERE LocationID IN ($placeholders)";
+            $db->myQuery($query, $locationIds);
+            $locationsData = $db->gibZeilen();
+            
+            // Create Location objects and associate with tasks
+            $locations = [];
+            foreach ($locationsData as $data) {
+                $location = new Location();
+                $location->loadFromData($data);
+                $locations[$data['LocationID']] = $location;
+            }
+            
+            // Manually set the location object on each task
+            foreach ($tasks as $task) {
+                $locationId = $task->getLocationId();
+                if ($locationId && isset($locations[$locationId])) {
+                    $task->setLocationObjDirect($locations[$locationId]);
+                }
+            }
+        }
+        
+        // 3. Eager load all tags for these tasks in one query
+        $placeholders = str_repeat('?,', count($taskIds) - 1) . '?';
+        $query = "SELECT t.*, tt.TaskID FROM Tag t 
+                 JOIN TaskTag tt ON t.TagID = tt.TagID 
+                 WHERE tt.TaskID IN ($placeholders)";
+        $db->myQuery($query, $taskIds);
+        $tagsData = $db->gibZeilen();
+        
+        // Group tags by task
+        $taskTags = [];
+        foreach ($tagsData as $data) {
+            $taskId = $data['TaskID'];
+            if (!isset($taskTags[$taskId])) {
+                $taskTags[$taskId] = [];
+            }
+            
+            $tag = new Tag();
+            $tag->loadFromData($data);
+            $taskTags[$taskId][] = $tag;
+        }
+        
+        // Set tags on each task
+        foreach ($taskTags as $taskId => $tags) {
+            if (isset($tasks[$taskId])) {
+                $tasks[$taskId]->setTagsDirect($tags);
+            }
+        }
+        
+        // 4. Eager load all reminders for these tasks in one query
+        $query = "SELECT * FROM TaskReminder WHERE TaskID IN ($placeholders)";
+        $db->myQuery($query, $taskIds);
+        $remindersData = $db->gibZeilen();
+        
+        // Group reminders by task
+        $taskReminders = [];
+        foreach ($remindersData as $data) {
+            $taskId = $data['TaskID'];
+            if (!isset($taskReminders[$taskId])) {
+                $taskReminders[$taskId] = [];
+            }
+            
+            $reminder = new TaskReminder();
+            $reminder->loadFromData($data);
+            $taskReminders[$taskId][] = $reminder;
+        }
+        
+        // Set reminders on each task
+        foreach ($taskReminders as $taskId => $reminders) {
+            if (isset($tasks[$taskId])) {
+                $tasks[$taskId]->setRemindersDirect($reminders);
+            }
+        }
+        
+        // Return tasks in simple array format (not keyed by ID)
+        return array_values($tasks);
     }
 
     /**
      * Get tasks in the user's queue
      *
+     * @param bool $eagerLoad Whether to eager load related objects (Location, Tags, Reminders)
      * @return array Array of Task objects in queue
      */
-    public function getQueuedTasks() {
+    public function getQueuedTasks($eagerLoad = false) {
         if ($this->userId === null) {
             return [];
         }
 
         require_once "./Model/TaskQueue.php";
-        return TaskQueue::getQueuedTasksByUser($this->userId);
+        
+        if (!$eagerLoad) {
+            // Original lazy loading implementation
+            return TaskQueue::getQueuedTasksByUser($this->userId);
+        }
+        
+        // Eager loading implementation - uses the Task eager loading system
+        $tasks = $this->getTasks(true); // Get all tasks with eager loading
+        
+        // Filter only the queued tasks
+        $queuedTaskIds = [];
+        $db = Todo_DB::gibInstanz();
+        $query = "SELECT TaskID FROM TaskQueue WHERE UserID = ? ORDER BY QueuePosition ASC";
+        $db->myQuery($query, [$this->userId]);
+        $queuedTasksData = $db->gibZeilen();
+        
+        foreach ($queuedTasksData as $data) {
+            $queuedTaskIds[] = $data['TaskID'];
+        }
+        
+        // Return only tasks that are in the queue, maintaining queue order
+        $queuedTasks = [];
+        foreach ($queuedTaskIds as $taskId) {
+            foreach ($tasks as $task) {
+                if ($task->getTaskId() == $taskId) {
+                    $queuedTasks[] = $task;
+                    break;
+                }
+            }
+        }
+        
+        return $queuedTasks;
     }
 
     /**
@@ -222,14 +366,100 @@ class User
      * Get the next recommended task for the user
      *
      * @param int|null $excludeTaskId Optional task ID to exclude from recommendations
+     * @param bool $eagerLoad Whether to eager load related objects (Location, Tags, Reminders)
      * @return Task|null A task or null if no tasks available
      */
-    public function getNextRecommendedTask($excludeTaskId = null) {
+    public function getNextRecommendedTask($excludeTaskId = null, $eagerLoad = false) {
         if ($this->userId === null) {
             return null;
         }
 
-        // First, check if there's anything in the queue
+        // For eager loading, we'll take a different approach - first get all tasks with eager loading
+        if ($eagerLoad) {
+            // Get all tasks with eager loading
+            $allTasks = $this->getTasks(true);
+            
+            // Get all queued tasks
+            require_once "./Model/TaskQueue.php";
+            $queueInfo = [];
+            $db = Todo_DB::gibInstanz();
+            $query = "SELECT TaskID, QueuePosition FROM TaskQueue 
+                      WHERE UserID = ? ORDER BY QueuePosition ASC";
+            $db->myQuery($query, [$this->userId]);
+            $queuedTasksData = $db->gibZeilen();
+            
+            foreach ($queuedTasksData as $data) {
+                $queueInfo[$data['TaskID']] = $data['QueuePosition'];
+            }
+            
+            // First, try to get a task from the queue (respecting the exclude)
+            foreach ($allTasks as $task) {
+                $taskId = $task->getTaskId();
+                
+                // Skip if it's the excluded task or not in queue or finished
+                if ($taskId == $excludeTaskId || !isset($queueInfo[$taskId]) || $task->getFinished()) {
+                    continue;
+                }
+                
+                // Found the first valid queued task
+                return $task;
+            }
+            
+            // If we get here, there's no valid task in queue (or only the excluded one is in queue)
+            // Look for a task that's not in queue, not finished, and not excluded
+            usort($allTasks, function($a, $b) {
+                // Sort by priority
+                $priorityValues = ['high' => 1, 'medium' => 2, 'low' => 3];
+                $priorityA = $priorityValues[$a->getPriority()];
+                $priorityB = $priorityValues[$b->getPriority()];
+                
+                if ($priorityA !== $priorityB) {
+                    return $priorityA - $priorityB;
+                }
+                
+                // Then by due date
+                $endDateA = $a->getEndDate();
+                $endDateB = $b->getEndDate();
+                
+                // Null dates should come last
+                if ($endDateA === null && $endDateB === null) return 0;
+                if ($endDateA === null) return 1;
+                if ($endDateB === null) return -1;
+                
+                return strtotime($endDateA) - strtotime($endDateB);
+            });
+            
+            // Find first task that's not excluded, not in queue, and not finished
+            foreach ($allTasks as $task) {
+                $taskId = $task->getTaskId();
+                
+                // Skip if it's excluded, in queue, or finished
+                if ($taskId == $excludeTaskId || isset($queueInfo[$taskId]) || $task->getFinished()) {
+                    continue;
+                }
+                
+                // Found a valid task not in queue
+                return $task;
+            }
+            
+            // If we still didn't find a task and were excluding one, try again including it
+            if ($excludeTaskId !== null) {
+                foreach ($allTasks as $task) {
+                    // Skip if it's in queue or finished
+                    if (isset($queueInfo[$task->getTaskId()]) || $task->getFinished()) {
+                        continue;
+                    }
+                    
+                    // Found a valid task not in queue
+                    return $task;
+                }
+            }
+            
+            // Nothing found
+            return null;
+        }
+        
+        // Original implementation for lazy loading
         require_once "./Model/TaskQueue.php";
         $nextQueuedTask = TaskQueue::getNextTaskInQueue($this->userId);
         

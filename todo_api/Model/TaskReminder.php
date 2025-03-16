@@ -55,11 +55,24 @@ class TaskReminder {
     public function getTaskId() { return $this->taskId; }
     public function getReminderTime() { return $this->reminderTime; }
     public function getIsSent() { return $this->isSent; }
+    /**
+     * Get the task associated with this reminder
+     * Supports both lazy and eager loading approaches
+     *
+     * @return Task|null The associated task
+     */
     public function getTask() {
         if ($this->task === null && $this->taskId !== null) {
             $this->task = new Task($this->taskId);
         }
         return $this->task;
+    }
+    
+    /**
+     * Direct setter for eager loading implementation
+     */
+    public function setTaskDirect($task) {
+        $this->task = $task;
     }
 
     // Setters

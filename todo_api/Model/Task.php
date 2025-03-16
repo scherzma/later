@@ -20,6 +20,8 @@ class Task {
     private $locationObj = null;
     private $everPostponed = false; // Flag to track if task was ever postponed
     private $dateFinished;
+    private $tags = null; // For eager loading of tags
+    private $reminders = null; // For eager loading of reminders
 
     public function __construct($id = null) {
         $this->db = Todo_DB::gibInstanz();
@@ -43,7 +45,7 @@ class Task {
         return true;
     }
 
-    private function loadFromData($data) {
+    public function loadFromData($data) {
         $this->taskId = $data['TaskID'];
         $this->title = $data['Title'];
         $this->description = $data['Description'];
@@ -87,8 +89,24 @@ class Task {
     public function getFinished() { return $this->finished; }
     
     /**
+     * Direct setter methods for eager loading implementation
+     * These methods allow setting preloaded related objects directly
+     * without triggering additional database queries
+     */
+    public function setUserDirect($user) { $this->user = $user; }
+    public function setLocationObjDirect($location) { $this->locationObj = $location; }
+    public function setTagsDirect($tags) { $this->tags = $tags; }
+    public function setRemindersDirect($reminders) { $this->reminders = $reminders; }
+    
+    /**
      * Lazy Loading: User object is only loaded when explicitly requested
      * This prevents unnecessary database queries if the user data isn't needed
+     */
+    /**
+     * Get the user who owns this task
+     * Supports both lazy and eager loading approaches
+     *
+     * @return User|null The user who owns this task
      */
     public function getUser() {
         if ($this->user === null && $this->userId !== null) {
@@ -141,10 +159,18 @@ class Task {
 
     // Relationship Methods
     /**
-     * Eager Loading: This fetches all tags for a task in a single query
-     * Uses JOIN to retrieve all related tags at once
+     * Get all tags for a task
+     * Supports both lazy and eager loading approaches
+     * 
+     * @return array Array of Tag objects
      */
     public function getTags() {
+        // Return already loaded tags if available (from eager loading)
+        if ($this->tags !== null) {
+            return $this->tags;
+        }
+        
+        // Otherwise, fetch tags using the normal query
         $query = "SELECT t.* FROM Tag t JOIN TaskTag tt ON t.TagID = tt.TagID WHERE tt.TaskID = ?";
         $this->db->myQuery($query, [$this->taskId]);
         $tagsData = $this->db->gibZeilen();
@@ -154,6 +180,9 @@ class Task {
             $tag->loadFromData($data);
             $tags[] = $tag;
         }
+        
+        // Store for future use
+        $this->tags = $tags;
         return $tags;
     }
 
@@ -168,9 +197,18 @@ class Task {
     }
 
     /**
-     * Eager Loading: This fetches all reminders for a task in a single query
+     * Get all reminders for a task
+     * Supports both lazy and eager loading approaches
+     * 
+     * @return array Array of TaskReminder objects
      */
     public function getReminders() {
+        // Return already loaded reminders if available (from eager loading)
+        if ($this->reminders !== null) {
+            return $this->reminders;
+        }
+        
+        // Otherwise, fetch reminders using the normal query
         $query = "SELECT * FROM TaskReminder WHERE TaskID = ?";
         $this->db->myQuery($query, [$this->taskId]);
         $remindersData = $this->db->gibZeilen();
@@ -180,6 +218,9 @@ class Task {
             $reminder->loadFromData($data);
             $reminders[] = $reminder;
         }
+        
+        // Store for future use
+        $this->reminders = $reminders;
         return $reminders;
     }
     
